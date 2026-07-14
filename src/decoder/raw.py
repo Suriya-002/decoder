@@ -39,6 +39,28 @@ def measurement_index(base):
     return idx
 
 
+# ---------------------------------------------------------------------------------------
+# TWO RULES YOU MUST FOLLOW WHEN BUILDING THE EVENT LIST. Both were found the hard way.
+#
+# RULE 1 -- DROP ROUND-0 LOSSES.
+#   "A truncated stabilizer flickers at 0.5" is a STEADY-STATE statement. In round 0 the data
+#   is still a product state in the memory basis, so a truncated SAME-BASIS stabilizer is still
+#   deterministic and reads 0 with high probability. Measured, memory_Z:
+#
+#       loss round |  Z-type partner  |  X-type partner
+#             0    |     0.6684       |     0.4998        <- round 0 is anomalous
+#          1..11   |     0.5000       |     0.5000        <- exactly theory, 1.6M samples each
+#
+#   Including round 0 biases eta_hat by +(1/12)*(1/2)*(0.668-0.500)*2 = +0.007. Measured: +0.008.
+#
+# RULE 2 -- EXCLUDE EVENTS WHERE THE PARTNER ANCILLA WAS LOST ANYWHERE IN THAT ROUND,
+#   not merely at the loss substep. An ancilla lost via its gate with some OTHER data qubit is
+#   DEAD and reads 0, but a naive check ("was it co-lost at THIS substep?") calls it ALIVE.
+#   This is the leading suspect for the residual ~+0.01 in eta_hat that survives Rule 1.
+#   NOT YET CONFIRMED. Confirm it before trusting eta_hat to better than +-0.02.
+# ---------------------------------------------------------------------------------------
+
+
 def eta_from_counts(n_zero, n_total, eps=0.0):
     """Returns (eta_hat, half_width_95). Both endpoints are theory; eps is measured on hardware."""
     P = n_zero / n_total

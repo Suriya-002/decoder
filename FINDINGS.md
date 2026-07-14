@@ -140,9 +140,44 @@ on hardware by reading out an empty trap.
 Bulk qubits land on 0.5003 — theory, to four decimals. Both anchors are now KNOWN-ANSWER CHECKS in
 run_checks.py (checks 19-22), at eps = 0 and eps = 0.02.
 
+## 7. The 0.5 is a STEADY-STATE statement — round 0 is not 0.5
+
+Seven independent replicates of P(m=0 | ALIVE) all landed ABOVE 0.5 (0.5159, 0.5067, 0.5003, 0.5022,
+0.5091, 0.5086, 0.5130). I called that a fluctuation on a +1.7 sigma pooled result. **That was wrong —
+the sign consistency was the signal, not the magnitude.** Seven-for-seven is p ~ 0.008 under the null.
+
+Forced single-loss injection, 9.6M samples, no loss sampling at all:
+
+    P(m=0 | ALIVE) = 0.49998 +- 0.00032   (-0.1 sigma)
+
+Exactly 0.5. Every stratum — degree, ancilla type, substep — within +-1 sigma. **The physics is clean.**
+The bias was in what the SAMPLED path includes and the forced test excluded: **round 0.**
+
+| loss round | Z-type partner | X-type partner |
+|---|---|---|
+| **0** | **0.6684 +- 0.0007** | 0.4998 |
+| 1 .. 11 | **0.5000** (all) | **0.5000** (all) |
+
+In round 0 the data is still |0...0> — a Z PRODUCT STATE. A truncated Z-stabilizer on a product state
+is STILL deterministic, so it reads 0 with high probability, not 0.5. The claim "a truncated stabilizer
+anticommutes and flickers at 0.5" holds only once the state is generic. It is a **steady-state** claim.
+
+Arithmetic closes: (1/12 of losses in round 0) x (1/2 have Z-type partners) x (0.668 - 0.500) x 2
+= **+0.007 predicted**. Observed pooled bias: **+0.008**.
+
+**Fix: drop round-0 losses.** eta_hat bias at eta=0 falls from 0.023 to 0.009.
+
 ## Status
 
-20+ known-answer checks, all passing, reproduced cross-platform. Nothing in this file is a fit.
+22+ known-answer checks, all passing, reproduced cross-platform. Nothing in this file is a fit.
+
+**OPEN — the one thing still not closed.** After dropping round 0, a residual of ~+0.01 remains in
+eta_hat (0.009 / 0.258 / 0.510 / 0.768 / 1.000 against 0 / 0.25 / 0.50 / 0.75 / 1.00). It is NOT physics:
+forced injection gives exactly 0.5000 at every round >= 1, to four decimals, 1.6M samples per cell. It is
+a contamination of the ALIVE class in the sampled path. Leading suspect, with the fix already written into
+`raw.py` as Rule 2: an ancilla lost via its gate with a DIFFERENT data qubit in the same round is DEAD and
+reads 0, but the naive check ("co-lost at THIS substep?") calls it ALIVE. **Confirm before trusting
+eta_hat to better than +-0.02.**
 
 **Still open:** everything measured here is d=5, memory_Z/X, circuit-level depolarizing noise, one code.
 The gauge argument predicts the same result for any code whose stabilizer signs are randomly projected —
