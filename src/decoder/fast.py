@@ -34,7 +34,7 @@ def prerender(base: stim.Circuit):
     return out
 
 
-def build_fast(pre, anc_set, loss_events) -> stim.Circuit:
+def build_fast(pre, anc_set, loss_events, false_bright: float = 0.0) -> stim.Circuit:
     lines, lost = [], set()
     for kind, n, tg, astr, extra in pre:
         if kind == "RAW":
@@ -53,6 +53,9 @@ def build_fast(pre, anc_set, loss_events) -> stim.Circuit:
             dead = [q for q in tg if q in lost]
             if dead:
                 lines.append(f"{_MEAS[n]} " + " ".join(map(str, dead)))
+                if false_bright > 0:
+                    e = "Z_ERROR" if n in ("MX", "MRX") else "X_ERROR"
+                    lines.append(f"{e}({false_bright!r}) " + " ".join(map(str, dead)))
             lines.append(f"{n}{astr} " + " ".join(map(str, tg)))
             if n in _RELOAD:
                 lost -= anc_set

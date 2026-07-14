@@ -24,7 +24,7 @@ _MEAS_RELOADS = {"MR", "MRX", "MRY"}          # these reset the ancilla -> loss 
 _ONE_Q = ("H", "X_ERROR", "Z_ERROR", "DEPOLARIZE1", "R", "RX", "RY", "S", "S_DAG")
 
 
-def build_with_loss(base: stim.Circuit, layout, loss_events: dict) -> stim.Circuit:
+def build_with_loss(base: stim.Circuit, layout, loss_events: dict, false_bright: float = 0.0) -> stim.Circuit:
     """loss_events: {(round, substep): {qubit, ...}} -- atoms lost at the START of that CZ layer."""
     anc_set = set(layout.anc)
     out = stim.Circuit()
@@ -59,6 +59,8 @@ def build_with_loss(base: stim.Circuit, layout, loss_events: dict) -> stim.Circu
             dead = [q for q in v if q in lost]
             if dead:
                 out.append(_MEAS[n], dead)     # no atom -> readout reports 0, in ANY basis
+                if false_bright > 0:           # dark count / stray scatter: a dead atom reads 1
+                    out.append("Z_ERROR" if n in ("MX", "MRX") else "X_ERROR", dead, false_bright)
             out.append(n, v, args)             # NEVER delete a measurement
             if n in _MEAS_RELOADS:
                 lost -= anc_set                # ancillas are reloaded every round

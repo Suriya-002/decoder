@@ -9,6 +9,7 @@ from decoder.layout import make_base, parse_layout, detector_map
 from decoder.circuit import build_with_loss
 from decoder.loss_models import sample_gate
 from decoder.fast import prerender, build_fast
+from decoder.raw import measurement_index
 
 FAIL = []
 def check(name, ok, detail=""):
@@ -116,6 +117,32 @@ for basis in ("z", "x"):
             bad += 1
     check(f"memory_{basis} : fast builder == reference builder", bad == 0,
           f"{200-bad}/200 random loss configs byte-identical")
+
+# 10 -- THE TWO THEORY ANCHORS of the raw-record estimator. These are not fits.
+#   ALIVE partner on a truncated stabilizer -> m is a coin flip                  -> P(m=0) = 0.5
+#   CO-LOST partner -> no atom, no |1> population, m = 0 (up to false-bright eps) -> P(m=0) = 1-eps
+for eps in (0.0, 0.02):
+    b = make_base(5, 12, 0.002, "z"); L = parse_layout(b, 5)
+    pre, anc = prerender(b), set(L.anc)
+    mi = measurement_index(b); dst = set(L.data)
+    acc = {True: [0, 0], False: [0, 0]}
+    for _ in range(30000):
+        for eta in (0.0, 1.0):
+            ev, tr = sample_gate(L, 12, 0.00054, eta, rng)
+            dl = [(q, r, s_) for (q, r, s_) in tr if q in dst]
+            if len(dl) != 1: continue
+            q, r, s_ = dl[0]; a = L.partner.get((q, s_))
+            if a is None or (a, r) not in mi: continue
+            if any(x not in {q, a} for (x, _, _) in tr): continue     # clean single-loss shots only
+            m = build_fast(pre, anc, ev, false_bright=eps).compile_sampler().sample(1)[0]
+            co = a in ev.get((r, s_), ())
+            acc[co][0] += int(m[mi[(a, r)]] == 0); acc[co][1] += 1
+    for co, target in ((False, 0.5), (True, 1.0 - eps)):
+        z, n = acc[co]
+        P = z / n; se = np.sqrt(max(P * (1 - P), 1e-12) / n)
+        ok = abs(P - target) < max(3 * se, 0.004)
+        check(f"eps={eps:.2f}: P(m=0 | {'CO-LOST' if co else 'ALIVE  '}) == {target:.2f} (theory)", ok,
+              f"measured={P:.4f} +-{1.96*se:.4f}  n={n}")
 
 print("\n" + ("ALL CHECKS PASSED" if not FAIL else f"{len(FAIL)} FAILED: {FAIL}"))
 sys.exit(1 if FAIL else 0)
