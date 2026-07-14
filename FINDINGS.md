@@ -71,24 +71,54 @@ them:
 A ONE-round window is degenerate and cannot work (η trades freely against both nuisances; the fit pegs
 at 1.0 — measured). Rounds r−1 and r+1 break both degeneracies for free.
 
-## 6. OPEN — and it is the highest-value next build
+## 6. The detector record is the wrong input representation for atom loss — MEASURED
 
-η̂ is monotone and localiser-independent but **affinely compressed**: 0.11 → 0.71 instead of 0 → 1.
-Calibratable, but it means the likelihood model is still misspecified.
+RAW MEASUREMENT of the partner ancilla at the loss round:
 
-**The likely cause, and the fix, are the same thing: stop using the detector record.**
+| | P(m=0) partner ALIVE | P(m=0) partner CO-LOST | signal |
+|---|---|---|---|
+| memory_Z, Z-anc | 0.5221 | **1.0000** | +0.478 |
+| memory_Z, X-anc | 0.4897 | **1.0000** | +0.510 |
+| memory_X, Z-anc | 0.4960 | **1.0000** | +0.504 |
+| memory_X, X-anc | 0.5186 | **1.0000** | +0.481 |
 
-A lost ancilla reads **m = 0 deterministically** — that is the physics (atom-array readout detects |1⟩
-population; no atom ⇒ no population). A live ancilla on a truncated stabilizer reads a **random** bit.
+**In 12,473 co-lost events the raw measurement was never once 1.** Not one. And the alive arm sits on
+theory's 0.5 in all four cells. Signal is +0.48 to +0.51 EVERYWHERE — versus the detector record, which
+gives +0.37 on half the ancillas and EXACTLY ZERO on the other half (§3).
 
-    P(m = 0 | ancilla dead)            = 1.0
-    P(m = 0 | ancilla alive, truncated) = 0.5
+### Closed form, no fitted constants, no simulated calibration, no template bank
 
-That is a factor of two, on the **whole array**, in **either basis**, with **no XOR to destroy it**.
+    P(m=0) = (1-eta)*0.5 + eta*1.0        =>    eta_hat = 2 * (P(m=0) - 0.5)
 
-The detector record (XOR of consecutive rounds) throws this away on half the ancillas by construction.
-**Every learned decoder in this literature — Wang's STGNN included — consumes detectors.** If the raw
-measurement record carries loss information that the detector record structurally cannot, that is a real
-architectural claim and it is cheap to test with this harness.
+Both endpoints are theory. Measured:
 
-PREDICTION, NOT YET MEASURED. Test it before believing it.
+| eta_true | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
+|---|---|---|---|---|---|
+| **eta_hat** | 0.032 | **0.249** | **0.515** | **0.750** | **1.000** |
+
+### WHY — and this is the actual intellectual content
+
+**Detectors are gauge-invariant. That is exactly why the field uses them, and exactly why they fail here.**
+
+The absolute value of a stabilizer is set by a random projection in round 0 and carries no information
+about Pauli errors — only *changes* do. The detector (XOR of consecutive rounds) quotients that gauge out.
+Correct, and optimal, for Pauli noise.
+
+**But a lost atom forces m = 0 regardless of the gauge. Loss BREAKS the gauge.** So the XOR that defines a
+detector is precisely the operation that destroys the loss signature — and it destroys it completely on
+whichever half of the array has a randomly-projected stabilizer sign.
+
+Every learned decoder in this literature consumes detectors. Wang's STGNN included.
+
+### TWO HONEST CAVEATS — do not quote the headline without them
+
+1. **P(m=1 | dead) = 0 is partly a MODELLING CHOICE, not pure physics.** The builder filters the readout
+   X_ERROR on lost atoms, so a dead atom reads a perfect 0. Real hardware has dark counts and imperfect
+   state discrimination, so the true false-bright rate is ~1e-3 to 1e-2, not 0. The likelihood ratio on
+   m=1 is therefore large (50:1 to 500:1), NOT infinite. Re-run with a nonzero false-bright rate before
+   claiming certainty.
+
+2. **P(m=0 | alive) came out 0.516, not the theoretical 0.500** (2.5 sigma). That residual is what produces
+   eta_hat = 0.032 at eta_true = 0, the one point outside its CI. Origin not yet identified. Candidates:
+   multi-loss shots contaminating the ALIVE class; boundary stabilizers of weight 2 truncating to weight 1.
+   **This is a ~3% systematic on eta and it is unresolved. Find it before writing anything up.**
