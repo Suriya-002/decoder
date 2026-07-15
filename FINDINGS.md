@@ -235,14 +235,38 @@ bespoke raw-record estimator is needed, and it is why the REPRESENTATION GAP -- 
 is the result. Positioning against BKY is "the leading general method has a nameable blind spot for
 this error class, here is the physics," not "our estimator beats theirs."
 
-## 10. What is NOT established
+## 10. GENERALITY: the gauge law is not surface-code-specific — MEASURED
 
-Everything here is **d=5, one code, circuit-level depolarizing noise, memory_Z/memory_X**. The gauge
-argument predicts the same result for any code whose stabilizer signs are randomly projected — which is
-all of them — but that is a PREDICTION, not a measurement. Sweep d and sweep the code before claiming
-generality. And re-run the prior-art search: Perrin and Liu both landed in March 2026.
+Reduced to its code-agnostic form, the gauge law is: a dead ancilla reads raw m=0, but its
+detector is m(r) XOR m(r-1), so the detector fires with P(m(r-1)=1) = P(the stabilizer sign is
+randomly projected). Deterministic-sign stabilizer -> detector blind to the dead ancilla;
+projected stabilizer -> detector fires 0.5, no info. Raw reads 0 either way. This depends only on
+stabilizer projection, not the code.
 
-**Still open:** everything measured here is d=5, memory_Z/X, circuit-level depolarizing noise, one code.
-The gauge argument predicts the same result for any code whose stabilizer signs are randomly projected —
-which is all of them — but that is a prediction, not a measurement. Sweep d, and sweep the code, before
-claiming generality.
+Forced-dead ancilla at round 6, memory_Z, noiseless (run_generality.py; unrotated case is
+run_checks.py #28-29):
+
+| code | d | anc type | stabilizer | raw P(m=0) | detector fires |
+|---|---|---|---|---|---|
+| surface rotated | 3, 5, 7 | Z | deterministic | 1.0000 | 0.0000 |
+| surface rotated | 3, 5, 7 | X | projected | 1.0000 | ~0.50 |
+| surface unrotated | 5 | Z / X | det / proj | 1.0000 | 0.0000 / ~0.50 |
+| color code | 5 | Z | **projected** | 1.0000 | **0.50** |
+
+The color code is the sharpest confirmation: its Z-type ancilla measures a PROJECTED stabilizer in
+this basis (steady-state <m>=0.498, vs 0.000 for the surface code), so its detector fires 0.50 --
+the OPPOSITE type is blind. The blind type's label flips with the code+basis; the law does not. Raw
+P(m=0)=1.0 on every code. The detector representation's blindness to atom loss, and the raw record's
+immunity, are properties of CSS-code memory in general.
+
+## 11. What is STILL NOT established
+
+- Only memory_Z / memory_X, and only the CSS codes Stim generates (surface rotated/unrotated,
+  repetition, color). Not tested: logical circuits with transversal gates, LDPC codes, non-CSS codes.
+- The full eta ESTIMATOR (not just the gauge law) has been validated only on the rotated surface
+  code. The generality sweep confirms the underlying REPRESENTATION claim on other codes, not the
+  end-to-end estimator.
+- Everything is circuit-level depolarizing noise. No hardware noise model, no leakage beyond the
+  gate-cancellation loss model, no crosstalk.
+- Re-run the prior-art search before writing: Perrin, Liu, Wang, and Blume-Kohout-Young all landed
+  within the last few months and the area is moving fast.

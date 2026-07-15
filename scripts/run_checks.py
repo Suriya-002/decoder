@@ -12,6 +12,7 @@ from decoder.fast import prerender, build_fast
 from decoder.raw import measurement_index
 from decoder.events import clean_events
 from decoder.pij import pij_pair
+from decoder.codeagnostic import parse_generic, raw_measurement_index, detector_index, force_ancilla_dead
 
 FAIL = []
 def check(name, ok, detail=""):
@@ -185,6 +186,26 @@ for p1, p2, p12 in ((0.10, 0.15, 0.05), (0.20, 0.05, 0.12), (0.02, 0.02, 0.03)):
     hat = pij_pair(d1, d2); se = 0.002
     check(f"p_ij recovers planted p12={p12:.2f} (BKY Eq. 36)", abs(hat - p12) < 0.004,
           f"recovered={hat:.4f}")
+
+# 13 -- GENERALITY: the gauge law is not surface-code-specific. On a DIFFERENT code (unrotated
+#      surface), a dead ancilla still reads raw m=0, and its detector still fires ~0 on the
+#      deterministic-stabilizer type and ~0.5 on the projected type.
+for spec in ("surface_code:unrotated_memory_z",):
+    cc0 = stim.Circuit.generated(spec, distance=5, rounds=12)
+    info = parse_generic(cc0); mi = raw_measurement_index(cc0)
+    dinv = {v: k for k, v in detector_index(cc0, info).items()}
+    R = 6
+    for t, group, want_det in (("Z", info["anc_z"], 0.0), ("X", info["anc_x"], 0.5)):
+        raws, dets = [], []
+        for a in group:
+            if (a, R) not in mi or (a, R) not in dinv: continue
+            c2 = force_ancilla_dead(cc0, a, R)
+            raws.append(float((~c2.compile_sampler().sample(3000)[:, mi[(a, R)]]).mean()))
+            dets.append(float(c2.compile_detector_sampler().sample(3000)[:, dinv[(a, R)]].mean()))
+        raw_ok = abs(np.mean(raws) - 1.0) < 1e-9
+        det_ok = abs(np.mean(dets) - want_det) < 0.03
+        check(f"generality (unrotated): {t}-type dead ancilla raw=1.0, detector~{want_det}", raw_ok and det_ok,
+              f"raw P(m=0)={np.mean(raws):.4f}  detector fires={np.mean(dets):.4f}")
 
 print("\n" + ("ALL CHECKS PASSED" if not FAIL else f"{len(FAIL)} FAILED: {FAIL}"))
 sys.exit(1 if FAIL else 0)
