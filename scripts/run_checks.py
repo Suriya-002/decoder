@@ -10,6 +10,7 @@ from decoder.circuit import build_with_loss
 from decoder.loss_models import sample_gate
 from decoder.fast import prerender, build_fast
 from decoder.raw import measurement_index
+from decoder.events import clean_events
 
 FAIL = []
 def check(name, ok, detail=""):
@@ -143,6 +144,33 @@ for eps in (0.0, 0.02):
         ok = abs(P - target) < max(3 * se, 0.004)
         check(f"eps={eps:.2f}: P(m=0 | {'CO-LOST' if co else 'ALIVE  '}) == {target:.2f} (theory)", ok,
               f"measured={P:.4f} +-{1.96*se:.4f}  n={n}")
+
+# 11 -- RULE 2: the clean-event list removes the multi-loss bias that scales with p_g.
+#      At eta=0 the estimator must return 0. The NAIVE per-round scan is biased high at elevated
+#      p_g; clean_events (first-truncation-round-only) must stay unbiased at every rate.
+for basis in ("z",):
+    b = make_base(5, 12, 0.002, basis); L = parse_layout(b, 5)
+    pre, anc = prerender(b), set(L.anc); mi = measurement_index(b); dst = set(L.data)
+    ANBR = {a: set() for a in L.anc}
+    for s_ in range(4):
+        for (dq, a) in L.pairs[s_]: ANBR[a].add(dq)
+    for pg, sh in ((0.010, 2500), (0.020, 1500)):
+        zc = nc = zn = nn = 0
+        for _ in range(sh):
+            ev, tr = sample_gate(L, 12, pg, 0.0, rng)     # eta = 0 -> estimator MUST return 0
+            if not tr: continue
+            m = build_fast(pre, anc, ev).compile_sampler().sample(1)[0]
+            for (q, r, sub, a) in clean_events(L, 12, tr, ANBR):
+                if (a, r) in mi: zc += int(m[mi[(a, r)]] == 0); nc += 1
+            for (q, r, sub) in tr:
+                if q not in dst or r < 1: continue
+                a = L.partner.get((q, sub))
+                if a is None or (a, r) not in mi: continue
+                zn += int(m[mi[(a, r)]] == 0); nn += 1
+        hc = 2 * (zc / nc - 0.5); hn = 2 * (zn / nn - 0.5)
+        sc = 2 * np.sqrt((zc/nc)*(1-zc/nc)/nc)
+        check(f"p_g={pg:.3f}: clean_events unbiased at eta=0 (naive is not)", abs(hc) < max(3*sc, 0.02),
+              f"clean eta_hat={hc:+.4f}  naive eta_hat={hn:+.4f} (biased)")
 
 print("\n" + ("ALL CHECKS PASSED" if not FAIL else f"{len(FAIL)} FAILED: {FAIL}"))
 sys.exit(1 if FAIL else 0)

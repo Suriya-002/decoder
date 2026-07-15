@@ -63,6 +63,8 @@ def measurement_index(base):
 
 def eta_from_counts(n_zero, n_total, eps=0.0):
     """Returns (eta_hat, half_width_95). Both endpoints are theory; eps is measured on hardware."""
+    if n_total == 0:
+        return float("nan"), float("nan")
     P = n_zero / n_total
     se = np.sqrt(max(P * (1 - P), 1e-12) / n_total)
     denom = 0.5 - eps

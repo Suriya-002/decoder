@@ -171,32 +171,40 @@ Arithmetic closes: (1/12 of losses in round 0) x (1/2 have Z-type partners) x (0
 
 22+ known-answer checks, all passing, reproduced cross-platform. Nothing in this file is a fit.
 
-## 8. RULE 2 — the residual is multi-loss contamination, and it is BOUNDED
+## 8. RULE 2 — the residual is a persistence artifact, now UNDERSTOOD and REMOVED
 
-Contamination must scale with p_g. Noise will not. That is the test.  `run_eta_raw.py --pg-scan`:
+I first guessed the residual was "partner ancilla dead via a different gate" (rate ~3*p_g). Measured:
+that channel is real but explains only ~35% of the bias. Excluding it left ~0.045 at p_g=0.01. Two
+more guesses (other-neighbour truncation; duplicate late-round entries) also failed. So I stopped
+guessing and conditioned on ground truth:
 
-| p_g | eta_hat (must be 0) | delta measured | 3*p_g |
-|---|---|---|---|
-| **0.00054** — Evered's MEASURED rate | **0.012 +- 0.016** | 0.00139 | 0.0016 |
-| 0.002 | 0.014 +- 0.013 | 0.00506 | 0.0060 |
-| 0.005 | 0.028 +- 0.012 | 0.01285 | 0.0150 |
-| 0.010 | 0.066 +- 0.010 | 0.02653 | 0.0300 |
+    ALIVE partner, eta=0, p_g=0.01, bucketed by # neighbour losses on the stabilizer:
+        even the clean k=1 bucket read P(m=0) = 0.5242 +- 0.0049   (+9.6 sigma)
 
-`delta` (the rate at which the partner ancilla is DEAD via its gate with a DIFFERENT data qubit)
-tracks **3*p_g exactly**. Rule 2 is real and quantified. Higher-order channels roughly double it
-again — e.g. a weight-2 boundary stabilizer that loses BOTH its data qubits truncates to weight ZERO
-and reads a deterministic 0.
+**The real mechanism: the 0.5 anchor holds ONLY in the round the data qubit FIRST goes missing on
+that stabilizer.** After the truncated outcome is recorded, the surviving qubits are projected and
+the stabilizer reads DETERMINISTICALLY thereafter. Data loss is persistent, so a naive per-round scan
+counts the same stabilizer in many later rounds where it is no longer 0.5. Same determinism physics as
+round 0 (section 7), from persistence instead of initialization.
 
-**But read the top row. At the loss rate that actually exists in hardware, the CI contains zero.**
-The artifact only bites at 10-20x the physical rate. Final known-answer test at p_g = 0.00054:
+`events.clean_events` (Rule 1 + "first-truncation round, fresh stabilizer, partner alive, one newly
+lost data qubit") removes it completely. eta_true = 0, so eta_hat must be 0:
 
-| eta_true | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
-|---|---|---|---|---|---|
-| **eta_hat** | **-0.010** | **0.245** | **0.488** | **0.763** | **1.000** |
+| p_g | NAIVE eta_hat | CLEAN eta_hat |
+|---|---|---|
+| 0.00054 — Evered's rate | -0.012 +- 0.016 | 0.009 +- 0.017 |
+| 0.005 | 0.035 +- 0.011 (biased) | -0.005 +- 0.014 |
+| 0.010 | 0.059 +- 0.010 (biased) | 0.004 +- 0.014 |
+| 0.020 | 0.157 +- 0.009 (biased) | 0.003 +- 0.018 |
 
-Every point inside its CI. **The estimator is unbiased at the physical loss rate.**
+Now a known-answer check (run_checks.py #23-24).
 
-Do not quote eta_hat to better than +-0.02 without modelling Rule 2.
+**CRUCIAL SCOPE LIMIT ON clean_events.** It keeps only clean ALIVE onsets — the partner is alive by
+construction — so it DELIBERATELY drops co-loss events, which ARE the eta signal. It is therefore an
+ANCHOR / eta=0 verification tool, NOT an eta>0 estimator. The production estimator (run_eta_raw.py,
+naive collector) keeps co-loss events and is unbiased at the physical loss rate; the Rule-2 bias only
+appears at >~10x hardware p_g. A one-line attempt to use clean_events AS the estimator was made and
+CAUGHT by the known-answer test (it returned ~0 for every eta, because it strips the signal). Fixed.
 
 ## 9. What is NOT established
 
