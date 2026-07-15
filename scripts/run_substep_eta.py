@@ -1,9 +1,13 @@
-"""Substep-aware eta estimator vs the substep-blind one. KNOWN-ANSWER TEST.
+"""SUPERSEDED by run_eta_raw.py. Kept as an honest research log.
 
-The localiser's recall/precision are NOT told to the estimator -- they are fitted out as
-nuisance parameters (f_phantom, f_mistimed). If eta is recovered across localiser qualities
-WITHOUT being told the quality, the systematic is gone.
+This is the DETECTOR-record estimator. It works, but it is strictly worse: it needs three
+fitted nuisance parameters, it is affinely compressed (0.11 -> 0.71 instead of 0 -> 1), and
+it is blind on half the ancillas because the detector's XOR destroys the loss signature
+wherever the stabilizer sign was randomly projected. See FINDINGS.md section 6.
+
+The raw measurement record needs ZERO fitted constants. Use run_eta_raw.py.
 """
+
 import sys, pathlib, argparse, time
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 import numpy as np

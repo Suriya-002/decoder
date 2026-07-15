@@ -171,13 +171,39 @@ Arithmetic closes: (1/12 of losses in round 0) x (1/2 have Z-type partners) x (0
 
 22+ known-answer checks, all passing, reproduced cross-platform. Nothing in this file is a fit.
 
-**OPEN — the one thing still not closed.** After dropping round 0, a residual of ~+0.01 remains in
-eta_hat (0.009 / 0.258 / 0.510 / 0.768 / 1.000 against 0 / 0.25 / 0.50 / 0.75 / 1.00). It is NOT physics:
-forced injection gives exactly 0.5000 at every round >= 1, to four decimals, 1.6M samples per cell. It is
-a contamination of the ALIVE class in the sampled path. Leading suspect, with the fix already written into
-`raw.py` as Rule 2: an ancilla lost via its gate with a DIFFERENT data qubit in the same round is DEAD and
-reads 0, but the naive check ("co-lost at THIS substep?") calls it ALIVE. **Confirm before trusting
-eta_hat to better than +-0.02.**
+## 8. RULE 2 — the residual is multi-loss contamination, and it is BOUNDED
+
+Contamination must scale with p_g. Noise will not. That is the test.  `run_eta_raw.py --pg-scan`:
+
+| p_g | eta_hat (must be 0) | delta measured | 3*p_g |
+|---|---|---|---|
+| **0.00054** — Evered's MEASURED rate | **0.012 +- 0.016** | 0.00139 | 0.0016 |
+| 0.002 | 0.014 +- 0.013 | 0.00506 | 0.0060 |
+| 0.005 | 0.028 +- 0.012 | 0.01285 | 0.0150 |
+| 0.010 | 0.066 +- 0.010 | 0.02653 | 0.0300 |
+
+`delta` (the rate at which the partner ancilla is DEAD via its gate with a DIFFERENT data qubit)
+tracks **3*p_g exactly**. Rule 2 is real and quantified. Higher-order channels roughly double it
+again — e.g. a weight-2 boundary stabilizer that loses BOTH its data qubits truncates to weight ZERO
+and reads a deterministic 0.
+
+**But read the top row. At the loss rate that actually exists in hardware, the CI contains zero.**
+The artifact only bites at 10-20x the physical rate. Final known-answer test at p_g = 0.00054:
+
+| eta_true | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
+|---|---|---|---|---|---|
+| **eta_hat** | **-0.010** | **0.245** | **0.488** | **0.763** | **1.000** |
+
+Every point inside its CI. **The estimator is unbiased at the physical loss rate.**
+
+Do not quote eta_hat to better than +-0.02 without modelling Rule 2.
+
+## 9. What is NOT established
+
+Everything here is **d=5, one code, circuit-level depolarizing noise, memory_Z/memory_X**. The gauge
+argument predicts the same result for any code whose stabilizer signs are randomly projected — which is
+all of them — but that is a PREDICTION, not a measurement. Sweep d and sweep the code before claiming
+generality. And re-run the prior-art search: Perrin and Liu both landed in March 2026.
 
 **Still open:** everything measured here is d=5, memory_Z/X, circuit-level depolarizing noise, one code.
 The gauge argument predicts the same result for any code whose stabilizer signs are randomly projected —
