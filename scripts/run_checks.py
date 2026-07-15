@@ -119,58 +119,61 @@ for basis in ("z", "x"):
     check(f"memory_{basis} : fast builder == reference builder", bad == 0,
           f"{200-bad}/200 random loss configs byte-identical")
 
-# 10 -- THE TWO THEORY ANCHORS of the raw-record estimator. These are not fits.
-#   ALIVE partner on a truncated stabilizer -> m is a coin flip                  -> P(m=0) = 0.5
-#   CO-LOST partner -> no atom, no |1> population, m = 0 (up to false-bright eps) -> P(m=0) = 1-eps
+# 10 -- THE TWO THEORY ANCHORS, via FORCED INJECTION at a BULK round (Rule 1: never round 0).
+#   Sampling the loss configs made this FLAKY: round-0 losses are anomalous (P(m=0|alive)=0.668,
+#   not 0.5 -- FINDINGS section 7), so a sampled ALIVE class carries a ~+0.007 bias sitting right
+#   at the tolerance. Forced injection at a fixed round >= 1 gives the theory value to 4 decimals
+#   and is seed- and platform-stable.
+#     ALIVE partner on a truncated stabilizer -> coin flip      -> P(m=0) = 0.5    (any eps; the
+#                                                                    alive atom is not affected by eps)
+#     CO-LOST partner -> no atom, m=0 up to false-bright eps    -> P(m=0) = 1 - eps
 for eps in (0.0, 0.02):
     b = make_base(5, 12, 0.002, "z"); L = parse_layout(b, 5)
-    pre, anc = prerender(b), set(L.anc)
-    mi = measurement_index(b); dst = set(L.data)
+    pre, anc = prerender(b), set(L.anc); mi = measurement_index(b)
+    R = 6                                                   # a bulk round, far from both boundaries
     acc = {True: [0, 0], False: [0, 0]}
-    for _ in range(30000):
-        for eta in (0.0, 1.0):
-            ev, tr = sample_gate(L, 12, 0.00054, eta, rng)
-            dl = [(q, r, s_) for (q, r, s_) in tr if q in dst]
-            if len(dl) != 1: continue
-            q, r, s_ = dl[0]; a = L.partner.get((q, s_))
-            if a is None or (a, r) not in mi: continue
-            if any(x not in {q, a} for (x, _, _) in tr): continue     # clean single-loss shots only
-            m = build_fast(pre, anc, ev, false_bright=eps).compile_sampler().sample(1)[0]
-            co = a in ev.get((r, s_), ())
-            acc[co][0] += int(m[mi[(a, r)]] == 0); acc[co][1] += 1
+    for q in L.data:
+        for s_ in range(4):
+            if (q, s_) not in L.partner: continue
+            a = L.partner[(q, s_)]
+            if (a, R) not in mi: continue
+            for co, ev in ((False, {(R, s_): {q}}), (True, {(R, s_): {q, a}})):
+                m = build_fast(pre, anc, ev, false_bright=eps).compile_sampler().sample(4000)
+                acc[co][0] += int((~m[:, mi[(a, R)]]).sum()); acc[co][1] += 4000
     for co, target in ((False, 0.5), (True, 1.0 - eps)):
         z, n = acc[co]
         P = z / n; se = np.sqrt(max(P * (1 - P), 1e-12) / n)
-        ok = abs(P - target) < max(3 * se, 0.004)
-        check(f"eps={eps:.2f}: P(m=0 | {'CO-LOST' if co else 'ALIVE  '}) == {target:.2f} (theory)", ok,
-              f"measured={P:.4f} +-{1.96*se:.4f}  n={n}")
+        ok = abs(P - target) < max(4 * se, 0.003)
+        check(f"eps={eps:.2f}: P(m=0 | {'CO-LOST' if co else 'ALIVE  '}) == {target:.2f} (theory, forced inj r={R})",
+              ok, f"measured={P:.5f} +-{1.96*se:.5f}  n={n}")
 
 # 11 -- RULE 2: the clean-event list removes the multi-loss bias that scales with p_g.
 #      At eta=0 the estimator must return 0. The NAIVE per-round scan is biased high at elevated
-#      p_g; clean_events (first-truncation-round-only) must stay unbiased at every rate.
-for basis in ("z",):
-    b = make_base(5, 12, 0.002, basis); L = parse_layout(b, 5)
-    pre, anc = prerender(b), set(L.anc); mi = measurement_index(b); dst = set(L.data)
-    ANBR = {a: set() for a in L.anc}
-    for s_ in range(4):
-        for (dq, a) in L.pairs[s_]: ANBR[a].add(dq)
-    for pg, sh in ((0.010, 2500), (0.020, 1500)):
-        zc = nc = zn = nn = 0
-        for _ in range(sh):
-            ev, tr = sample_gate(L, 12, pg, 0.0, rng)     # eta = 0 -> estimator MUST return 0
-            if not tr: continue
-            m = build_fast(pre, anc, ev).compile_sampler().sample(1)[0]
-            for (q, r, sub, a) in clean_events(L, 12, tr, ANBR):
-                if (a, r) in mi: zc += int(m[mi[(a, r)]] == 0); nc += 1
-            for (q, r, sub) in tr:
-                if q not in dst or r < 1: continue
-                a = L.partner.get((q, sub))
-                if a is None or (a, r) not in mi: continue
-                zn += int(m[mi[(a, r)]] == 0); nn += 1
-        hc = 2 * (zc / nc - 0.5); hn = 2 * (zn / nn - 0.5)
-        sc = 2 * np.sqrt((zc/nc)*(1-zc/nc)/nc)
-        check(f"p_g={pg:.3f}: clean_events unbiased at eta=0 (naive is not)", abs(hc) < max(3*sc, 0.02),
-              f"clean eta_hat={hc:+.4f}  naive eta_hat={hn:+.4f} (biased)")
+#      p_g; clean_events (first-truncation-round-only) must stay unbiased. Stated as a RATIO
+#      (clean at least 3x closer to 0 than naive) so it is not a knife-edge tolerance.
+b = make_base(5, 12, 0.002, "z"); L = parse_layout(b, 5)
+pre, anc = prerender(b), set(L.anc); mi = measurement_index(b); dst = set(L.data)
+ANBR = {a: set() for a in L.anc}
+for s_ in range(4):
+    for (dq, a) in L.pairs[s_]: ANBR[a].add(dq)
+for pg, sh in ((0.010, 4000), (0.020, 3000)):
+    zc = nc = zn = nn = 0
+    for _ in range(sh):
+        ev, tr = sample_gate(L, 12, pg, 0.0, rng)          # eta = 0 -> estimator MUST return 0
+        if not tr: continue
+        m = build_fast(pre, anc, ev).compile_sampler().sample(1)[0]
+        for (q, r, sub, a) in clean_events(L, 12, tr, ANBR):
+            if (a, r) in mi: zc += int(m[mi[(a, r)]] == 0); nc += 1
+        for (q, r, sub) in tr:
+            if q not in dst or r < 1: continue
+            a = L.partner.get((q, sub))
+            if a is None or (a, r) not in mi: continue
+            zn += int(m[mi[(a, r)]] == 0); nn += 1
+    hc = 2 * (zc / nc - 0.5); hn = 2 * (zn / nn - 0.5)
+    sc = 2 * np.sqrt((zc / nc) * (1 - zc / nc) / nc)
+    ok = (abs(hc) < 3 * sc + 0.01) and (abs(hc) < abs(hn) / 3)
+    check(f"p_g={pg:.3f}: clean_events removes the naive bias", ok,
+          f"clean eta_hat={hc:+.4f} +-{1.96*sc:.4f}   naive eta_hat={hn:+.4f}   ({abs(hn)/max(abs(hc),1e-6):.0f}x closer)")
 
 print("\n" + ("ALL CHECKS PASSED" if not FAIL else f"{len(FAIL)} FAILED: {FAIL}"))
 sys.exit(1 if FAIL else 0)
