@@ -206,7 +206,36 @@ naive collector) keeps co-loss events and is unbiased at the physical loss rate;
 appears at >~10x hardware p_g. A one-line attempt to use clean_events AS the estimator was made and
 CAUGHT by the known-answer test (it returned ~0 for every eta, because it strips the signal). Fixed.
 
-## 9. What is NOT established
+## 9. HEAD-TO-HEAD vs the field's detector-statistics estimators (BKY 2504.14643)
+
+Blume-Kohout & Young estimate DEM event rates from syndrome data via the p_ij / detector-covariance
+method (their Eq. 36, re-deriving Spitz and Google). It is the strongest general syndrome-statistics
+estimator in the literature and it handles readout errors. **It is built entirely on the detector
+record** -- the XOR of consecutive syndrome measurements. That is exactly the operation section 3
+shows destroys the loss signature on the randomly-projected ancilla type.
+
+Same co-loss discrimination, both representations, split by ancilla type (p_ij implementation
+validated against a planted correlation, run_checks.py #25-27):
+
+| representation | anc type | gap (co-lost minus alive) |
+|---|---|---|
+| RAW measurement m_a | Z-type | **+0.54** |
+| RAW measurement m_a | X-type | **+0.50** |
+| DETECTOR (BKY XOR) d_a | Z-type | -0.36 |
+| DETECTOR (BKY XOR) d_a | X-type | **-0.02  (blind)** |
+
+The detector representation is gauge-blind on the X-type half; the raw record keeps the signal on
+both. This is a statement about the INPUT REPRESENTATION every learned and statistical loss
+estimator in this literature -- BKY, Spitz, Google, Wang's STGNN -- is built on.
+
+**HONEST SCOPE (do not overclaim).** A raw detector-PAIR p_ij does NOT cleanly "track eta": a
+co-lost data qubit's persistent flicker dominates any detector pair equally at every eta, swamping
+the co-loss-specific term (measured; the per-pair delta is noise). That confound is precisely why a
+bespoke raw-record estimator is needed, and it is why the REPRESENTATION GAP -- not a p_ij number --
+is the result. Positioning against BKY is "the leading general method has a nameable blind spot for
+this error class, here is the physics," not "our estimator beats theirs."
+
+## 10. What is NOT established
 
 Everything here is **d=5, one code, circuit-level depolarizing noise, memory_Z/memory_X**. The gauge
 argument predicts the same result for any code whose stabilizer signs are randomly projected — which is

@@ -11,6 +11,7 @@ from decoder.loss_models import sample_gate
 from decoder.fast import prerender, build_fast
 from decoder.raw import measurement_index
 from decoder.events import clean_events
+from decoder.pij import pij_pair
 
 FAIL = []
 def check(name, ok, detail=""):
@@ -174,6 +175,16 @@ for pg, sh in ((0.010, 4000), (0.020, 3000)):
     ok = (abs(hc) < 3 * sc + 0.01) and (abs(hc) < abs(hn) / 3)
     check(f"p_g={pg:.3f}: clean_events removes the naive bias", ok,
           f"clean eta_hat={hc:+.4f} +-{1.96*sc:.4f}   naive eta_hat={hn:+.4f}   ({abs(hn)/max(abs(hc),1e-6):.0f}x closer)")
+
+# 12 -- the BKY/Spitz p_ij estimator (Eq. 36) must recover a PLANTED correlated-flip rate.
+#      Validates the baseline implementation before it is used in the head-to-head.
+for p1, p2, p12 in ((0.10, 0.15, 0.05), (0.20, 0.05, 0.12), (0.02, 0.02, 0.03)):
+    N = 300000
+    d1 = rng.random(N) < p1; d2 = rng.random(N) < p2; both = rng.random(N) < p12
+    d1 = d1 ^ both; d2 = d2 ^ both
+    hat = pij_pair(d1, d2); se = 0.002
+    check(f"p_ij recovers planted p12={p12:.2f} (BKY Eq. 36)", abs(hat - p12) < 0.004,
+          f"recovered={hat:.4f}")
 
 print("\n" + ("ALL CHECKS PASSED" if not FAIL else f"{len(FAIL)} FAILED: {FAIL}"))
 sys.exit(1 if FAIL else 0)
