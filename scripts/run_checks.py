@@ -207,5 +207,29 @@ for spec in ("surface_code:unrotated_memory_z",):
         check(f"generality (unrotated): {t}-type dead ancilla raw=1.0, detector~{want_det}", raw_ok and det_ok,
               f"raw P(m=0)={np.mean(raws):.4f}  detector fires={np.mean(dets):.4f}")
 
+# 30-31 -- REALISM: under refined neutral-atom physics (survivor biased-Z + Evered Pauli budget +
+#      false-bright eps), the estimator anchors must hold. Survivor-Z acts on the atom that STAYS,
+#      so it cannot touch the lost atom's ancilla reading. Forced injection, eps=0.01.
+rb = make_base(5, 12, 0.002, "z"); rL = parse_layout(rb, 5)
+rpre, ranc = prerender(rb), set(rL.anc); rmi = measurement_index(rb)
+rpartner = {}
+for rs in range(4):
+    for (rdq, ra) in rL.pairs[rs]:
+        rpartner[(rdq, rs)] = ra; rpartner[(ra, rs)] = rdq
+rR, racc = 6, {True: [0, 0], False: [0, 0]}
+for rq in rL.data:
+    for rs in range(4):
+        if (rq, rs) not in rL.partner: continue
+        ra = rL.partner[(rq, rs)]
+        if (ra, rR) not in rmi: continue
+        for rco, rev in ((False, {(rR, rs): {rq}}), (True, {(rR, rs): {rq, ra}})):
+            rm = build_fast(rpre, ranc, rev, false_bright=0.01, partner=rpartner,
+                            survivor_z=0.5, pz=0.00024, pxy=0.00003).compile_sampler().sample(4000)[:, rmi[(ra, rR)]]
+            racc[rco][0] += int((~rm).sum()); racc[rco][1] += 4000
+for rco, rtgt in ((False, 0.5), (True, 0.99)):
+    rz, rn = racc[rco]; rP = rz / rn
+    check(f"realism: P(m=0|{'co-lost' if rco else 'alive'}) == {rtgt} (survivor-Z+Pauli+eps)",
+          abs(rP - rtgt) < 0.012, f"measured={rP:.4f}")
+
 print("\n" + ("ALL CHECKS PASSED" if not FAIL else f"{len(FAIL)} FAILED: {FAIL}"))
 sys.exit(1 if FAIL else 0)
