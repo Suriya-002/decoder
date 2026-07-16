@@ -18,6 +18,13 @@ _MEAS = {"M": "R", "MR": "R", "MX": "RX", "MRX": "RX", "MY": "RY", "MRY": "RY"}
 _RELOAD = {"MR", "MRX", "MRY"}
 _1Q = {"H", "X_ERROR", "Z_ERROR", "DEPOLARIZE1", "R", "RX", "RY", "S", "S_DAG"}
 
+_N_SUB = 4  # CX layers per round (rotated & unrotated surface = 4). set via set_n_sub for other codes.
+
+
+def set_n_sub(n):
+    global _N_SUB
+    _N_SUB = n
+
 
 def prerender(base: stim.Circuit):
     """Pay targets_copy() once, not once per shot."""
@@ -49,7 +56,7 @@ def build_fast(pre, anc_set, loss_events, false_bright: float = 0.0,
             lines.append(extra)
         elif kind == "2Q":
             if extra is not None:
-                r, s = divmod(extra, 4)
+                r, s = divmod(extra, _N_SUB)
                 new = sorted(q for q in loss_events.get((r, s), ()) if q not in lost)
                 if new:                                     # MUST be sorted to match the reference
                     lines.append("DEPOLARIZE1(0.75) " + " ".join(map(str, new)))

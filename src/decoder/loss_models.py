@@ -43,8 +43,9 @@ def sample_gate(layout, rounds, p_g, eta, rng):
     p_both = eta * p_g
     p_one = (1.0 - eta) * p_g
     ev, truth = {}, []
+    n_sub = getattr(layout, "n_sub", 4)
     for r in range(rounds):
-        for s in range(4):
+        for s in range(n_sub):
             for (dq, a) in layout.pairs[s]:
                 u = rng.random()
                 if u < p_both:

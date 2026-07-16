@@ -231,5 +231,31 @@ for rco, rtgt in ((False, 0.5), (True, 0.99)):
     check(f"realism: P(m=0|{'co-lost' if rco else 'alive'}) == {rtgt} (survivor-Z+Pauli+eps)",
           abs(rP - rtgt) < 0.012, f"measured={rP:.4f}")
 
+# 32-33 -- ESTIMATOR GENERALITY: anchors hold on codes beyond rotated surface (unrotated + color).
+#      parse_any detects n_sub per code; the estimator recovers the theory anchors 0.5 / 1.0.
+from decoder.genlayout import parse_any as _parse_any
+from decoder.fast import set_n_sub as _set_n_sub
+import stim as _stim
+for _spec, _nm, _want_nsub in (("surface_code:unrotated_memory_z", "unrotated", 4),
+                                ("color_code:memory_xyz", "color", 6)):
+    _b = _stim.Circuit.generated(_spec, distance=5, rounds=12)
+    _L = _parse_any(_b, 5); _set_n_sub(_L.n_sub)
+    check(f"estimator generality ({_nm}): n_sub detected == {_want_nsub}", _L.n_sub == _want_nsub,
+          f"n_sub={_L.n_sub}")
+    _pre, _anc = prerender(_b), set(_L.anc); _mi = measurement_index(_b)
+    _R, _ac = 6, {True: [0, 0], False: [0, 0]}
+    for _q in _L.data:
+        for _s in range(_L.n_sub):
+            if (_q, _s) not in _L.partner: continue
+            _a = _L.partner[(_q, _s)]
+            if (_a, _R) not in _mi: continue
+            for _co, _ev in ((False, {(_R, _s): {_q}}), (True, {(_R, _s): {_q, _a}})):
+                _m = build_fast(_pre, _anc, _ev).compile_sampler().sample(3000)[:, _mi[(_a, _R)]]
+                _ac[_co][0] += int((~_m).sum()); _ac[_co][1] += 3000
+    _pa = _ac[False][0] / _ac[False][1]; _pc = _ac[True][0] / _ac[True][1]
+    check(f"estimator generality ({_nm}): anchors 0.5 / 1.0", abs(_pa - 0.5) < 0.02 and _pc == 1.0,
+          f"alive={_pa:.4f} co-lost={_pc:.4f}")
+_set_n_sub(4)
+
 print("\n" + ("ALL CHECKS PASSED" if not FAIL else f"{len(FAIL)} FAILED: {FAIL}"))
 sys.exit(1 if FAIL else 0)
