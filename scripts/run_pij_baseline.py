@@ -36,20 +36,22 @@ mi = measurement_index(b); dm = detector_map(b, L)
 di = {(a, r): i for i, (a, r) in dm.items()}
 dset = set(L.data); rng = np.random.default_rng(A.seed)
 
-acc = {(rep, t, co): [0, 0] for rep in ("raw", "det") for t in ("Z", "X") for co in (0, 1)}
+acc = {(rep, t, co): [0, 0] for rep in ("raw", "det", "g2") for t in ("Z", "X") for co in (0, 1)}
 for eta in (0.0, 1.0):
     for _ in range(A.shots):
         ev, truth = sample_gate(L, A.T, A.pg, eta, rng)
         raw = build_fast(pre, anc, ev).compile_sampler().sample(1)[0]
         det = build_fast(pre, anc, ev).compile_detector_sampler().sample(1)[0]
         for (q, r, s) in truth:
-            if q not in dset or r < 1: continue
+            if q not in dset or r < 2: continue                 # r>=2 so the 2-step reference exists
             a = L.partner.get((q, s))
-            if a is None or (a, r) not in mi or (a, r) not in di: continue
+            if a is None or (a, r) not in mi or (a, r - 2) not in mi or (a, r) not in di: continue
             t = "X" if a in L.anc_x else "Z"
             co = 1 if a in ev.get((r, s), ()) else 0
-            acc[("raw", t, co)][0] += int(raw[mi[(a, r)]] == 0); acc[("raw", t, co)][1] += 1
+            m_r, m_r2 = int(raw[mi[(a, r)]]), int(raw[mi[(a, r - 2)]])
+            acc[("raw", t, co)][0] += int(m_r == 0); acc[("raw", t, co)][1] += 1
             acc[("det", t, co)][0] += int(det[di[(a, r)]] == 1); acc[("det", t, co)][1] += 1
+            acc[("g2", t, co)][0] += int((m_r ^ m_r2) == 1); acc[("g2", t, co)][1] += 1   # Google M[m]*M[m-2]
 
 
 def rate(k):
@@ -61,13 +63,16 @@ def rate(k):
 print(f"CO-LOSS DISCRIMINATION vs REPRESENTATION   d={A.d} T={A.T} p_g={A.pg} memory_Z\n")
 print(f"{'representation':<22}{'anc type':>9} | {'signal|alive':>18} | {'signal|co-lost':>18} | {'gap':>9}")
 print("-" * 84)
-for rep, lbl in (("raw", "RAW measurement m_a"), ("det", "DETECTOR (BKY XOR) d_a")):
+for rep, lbl in (("raw", "RAW  m(r)"),
+                 ("det", "1-STEP detector  m(r)^m(r-1)  [BKY/Spitz]"),
+                 ("g2",  "2-STEP  m(r)^m(r-2)  [Google leakage]")):
     for t in ("Z", "X"):
         (ra, ea), (rc, ec) = rate((rep, t, 0)), rate((rep, t, 1))
         print(f"{lbl:<22}{t+'-type':>9} | {ra:>8.4f} +-{ea:.4f} | {rc:>8.4f} +-{ec:.4f} | {rc-ra:>+9.4f}")
     print()
 print("Z-type = deterministic stabilizer sign; X-type = randomly projected (memory_Z).")
-print("The DETECTOR representation (what every BKY/Spitz/Google p_ij estimator consumes) is")
-print("gauge-blind on the X-type half -- gap collapses to ~0. The RAW record keeps it on both.")
-print("This is the core result: it is a statement about the INPUT REPRESENTATION every learned")
-print("and statistical loss estimator in this literature is built on.")
+print("BOTH XOR-based representations -- the ordinary 1-step detector AND the 2-step Google leakage")
+print("syndrome M[m]*M[m-2] -- are gauge-blind on the projected (X) type: gap ~ 0. Only the RAW")
+print("record keeps the co-loss signal on both types. This answers the sharpest related-work")
+print("question (Google 1905.12731 already uses the raw record + a 2-step product for LEAKAGE):")
+print("their 2-step construction does NOT recover the atom-loss signal on the projected stabilizer.")
