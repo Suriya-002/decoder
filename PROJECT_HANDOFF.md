@@ -672,3 +672,30 @@ conditional probability of losing the second atom given that the first atom has 
 during the same CZ gate" - and SWEEP it 0 to 1 as a free input, because nobody can measure it.
 Their threshold result (3.2% -> 4%) depends on its value; Pauli Envelope's (5.15% -> 7.82%) too.
 That gap is the motivation. See FINDINGS.md section 11b for the exact wording to use.
+
+## 25. IMPACT EXPERIMENT DONE - 19 Jul 2026 (SUPERSEDES SECTION 21 bullet 3 AND SECTION 22 item 1)
+
+Section 21 states the estimator "never demonstrates that knowing eta improves anything measurable"
+and Section 22 lists closing that gap as next step 1. BOTH ARE OUT OF DATE. The experiment was
+built and run - see FINDINGS.md section 14 and scripts/run_impact.py.
+
+RESULT: no benefit. d=5, T=12, p=0.002, p_g=0.008, eta=1, 5500 shots.
+  arm 0 IGNORANT        LER 0.34636
+  arm A data-loss aware LER 0.21945
+  arm B eta known       LER 0.23455
+  arm O oracle ancilla  LER 0.23455
+CONTROL ignorant - A = +0.12691 +- 0.01667 (~15 sigma) proves the machinery works, so the A-vs-B
+null is real. A - B = -0.01509 +- 0.01565, consistently negative. Perfect eta knowledge (arm O)
+buys nothing.
+
+WHY: discounting the co-lost ancilla treats its reading as erased, but a dead ancilla reads m=0
+DETERMINISTICALLY - the same physics the estimator relies on. Erasing it loses more than it gains.
+
+SCOPE: tests ONE strategy (detector discounting, no heralds). Perrin 2603.24237 uses their
+correlation parameter inside an LDU-heralded loss graph and reports up to an order-of-magnitude
+logical error reduction. NOT a contradiction - different mechanism - but the paper MUST address
+the tension explicitly, naming Perrin's number.
+
+CONSEQUENCE: venue is settled as IEEE TQE. QST needed a positive impact result; there isn't one via
+this route. Do not re-run this experiment. Perrin-style superstabilizer integration remains genuine
+future work.
