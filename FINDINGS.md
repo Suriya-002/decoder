@@ -318,3 +318,51 @@ This is a METHODS NOTE, not a field-shifting representation claim. That is the r
   gate-cancellation loss model, no crosstalk.
 - Re-run the prior-art search before writing: Perrin, Liu, Wang, and Blume-Kohout-Young all landed
   within the last few months and the area is moving fast.
+
+## 14. IMPACT EXPERIMENT - does knowing eta improve DECODING? MEASURED: no, via this strategy
+
+DESIGN. A lossy circuit has non-deterministic detectors AND a non-deterministic logical observable
+(a lost data qubit in the logical support destroys the operator), so Stim cannot build a DEM from
+it - proper loss decoding needs superstabilizer merging and logical-operator deformation, which is
+what Perrin arXiv:2603.24237 IS. Sidestepped: SAMPLE from the true lossy circuit, DECODE with the
+clean DEM whose edge weights are modified per shot to encode the decoder's beliefs. Freeing an edge
+= probability 0.5 = weight 0. Verified lossless: rebuilding the DEM unmodified reproduces the
+baseline LER exactly (0.00198 both ways).
+
+Four arms (d=5, T=12, p=0.002, p_g=0.008, eta=1, 5500 shots):
+
+| arm | knows | LER |
+|---|---|---|
+| 0 IGNORANT | nothing | 0.34636 |
+| A | data-qubit losses; assumes ancillas alive | 0.21945 |
+| B | + discounts co-lost ancilla detectors (eta known) | 0.23455 |
+| O ORACLE | + every truly-dead ancilla | 0.23455 |
+
+CONTROL - the machinery works: ignorant - A = +0.12691 +- 0.01667, ~15 sigma. Loss information
+massively improves decoding, so the A-vs-B null is a REAL null, not a broken pipeline.
+
+RESULT: A - B = -0.01509 +- 0.01565, consistently negative across runs. Knowing which ancillas were
+co-lost does not help and slightly hurts. Not an estimation-quality problem: the ORACLE arm with
+perfect ancilla knowledge is identical to arm B.
+
+CONSISTENCY CHECK: at eta=1, arm B == arm O EXACTLY (1290/5500 reference run; independently
+reproduced as 1251/5500 on a second machine), because every partner ancilla really is co-lost.
+
+WHY IT FAILS, AND WHY THAT IS THE INTERESTING PART. Freeing the co-lost ancilla's measurement edge
+treats its reading as ERASED. But a dead ancilla reads m = 0 DETERMINISTICALLY - that is the entire
+basis of this project's estimator. Its detector d = 0 XOR m(r-1) still carries information about
+m(r-1). Erasing it throws away more than it gains. The dead ancilla's reading is informative, so
+discarding it is exactly the wrong move. The negative result and the paper's central claim are the
+same physics.
+
+STATISTICS CAVEAT - DO NOT POOL RUNS. run_impact.py hardcodes np.random.default_rng(7), so separate
+runs of the shipped script share identical loss realizations; only Stim's Pauli/measurement sampling
+differs. Pooling understates the variance and would manufacture false significance. Honest
+statement: A - B is consistently negative across runs (-0.014, -0.0151, -0.0135) but NOT
+individually significant. Resolving whether the slight harm is real needs independent seeds; judged
+not worth the compute, since "no benefit" and "slight harm" support the same conclusion and the
+~15-sigma control already establishes the null is real.
+
+SCOPE - DO NOT OVERCLAIM. This tests ONE strategy for using eta (discount the corrupted detector).
+Perrin uses eta differently, inside superstabilizer / loss-detection construction. Evidence that eta
+has no value for THIS decoding strategy; NOT evidence that eta is useless for decoding in general.
