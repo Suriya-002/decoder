@@ -209,7 +209,7 @@ CAUGHT by the known-answer test (it returned ~0 for every eta, because it strips
 ## 9. HEAD-TO-HEAD vs the field's detector-statistics estimators (BKY 2504.14643)
 
 Blume-Kohout & Young estimate DEM event rates from syndrome data via the p_ij / detector-covariance
-method (their Eq. 36, re-deriving Spitz and Google). It is the strongest general syndrome-statistics
+method (their Eq. 36, re-deriving Spitz and Google Quantum AI). It is the strongest general syndrome-statistics
 estimator in the literature and it handles readout errors. **It is built entirely on the detector
 record** -- the XOR of consecutive syndrome measurements. That is exactly the operation section 3
 shows destroys the loss signature on the randomly-projected ancilla type.
@@ -226,7 +226,7 @@ validated against a planted correlation, run_checks.py #25-27):
 
 The detector representation is gauge-blind on the X-type half; the raw record keeps the signal on
 both. This is a statement about the INPUT REPRESENTATION every learned and statistical loss
-estimator in this literature -- BKY, Spitz, Google, Wang's STGNN -- is built on.
+estimator in this literature -- BKY, Spitz, Google Quantum AI, Wang's STGNN -- is built on.
 
 **HONEST SCOPE (do not overclaim).** A raw detector-PAIR p_ij does NOT cleanly "track eta": a
 co-lost data qubit's persistent flicker dominates any detector pair equally at every eta, swamping
@@ -266,7 +266,7 @@ established for LEAKAGE detection, and the closest prior art states the gauge as
 verbatim. Do not claim the general idea. Claim the specific specialization.
 
 WHAT EXISTS (must be cited, and built around):
-  * Google leakage HMM -- Science Advances / arXiv:1905.12731. Detects leakage from the RAW parity
+  * Bultink et al. (Delft) leakage HMM -- Science Advances / arXiv:1905.12731. Detects leakage from the RAW parity
     record. A leaked ancilla reads a persistent fixed outcome because measurement cannot discern
     |2> from |1> -- structurally identical to a lost atom reading m=0. They define a data-qubit
     syndrome as the TWO-STEP product s_D[m] = M_A[m] * M_A[m-2], explicitly because the ordinary
@@ -277,16 +277,16 @@ WHAT EXISTS (must be cited, and built around):
     defect-probability increase.
   * Blume-Kohout & Young 2504.14643 -- the detector-covariance p_ij estimator (Section 9 head-to-head).
 
-MEASURED: is the Google two-step construction enough to recover the ATOM-LOSS signal? NO. Three
+MEASURED: is the Bultink two-step construction enough to recover the ATOM-LOSS signal? NO. Three
 representations, co-loss discrimination gap on the partner ancilla (run_pij_baseline.py):
 
 | representation | Z-type (deterministic) | X-type (projected) |
 |---|---|---|
 | RAW m(r) | 0.50 | **0.49** |
 | 1-step detector m(r)^m(r-1) [BKY/Spitz] | 0.38 | **0.003** |
-| 2-step m(r)^m(r-2) [Google leakage] | 0.39 | **0.008** |
+| 2-step m(r)^m(r-2) [Bultink leakage] | 0.39 | **0.008** |
 
-Both XOR-based constructions -- the ordinary detector AND Google's two-step leakage syndrome -- are
+Both XOR-based constructions -- the ordinary detector AND Bultink's two-step leakage syndrome -- are
 gauge-blind on the projected type. The two-step references round r-2, still a projected round, so
 the forced-0 is XORed against a random value exactly as the one-step is. Only the raw record works
 on both types.
@@ -296,11 +296,11 @@ WHAT SURVIVES AS THE CONTRIBUTION (narrow, defensible, publishable):
   deriving a CALIBRATION-FREE CLOSED-FORM estimator of the CZ-pair loss-correlation eta -- a
   quantity nobody estimates, from the m=0 coincidence observable that no published loss decoder
   uses, shown gauge-general across codes (Section 10), and shown to sit outside what both the
-  detector-covariance method [BKY] and the two-step leakage construction [Google] can produce.
+  detector-covariance method [BKY] and the two-step leakage construction [Bultink] can produce.
 
 ONE-LINE POSITIONING FOR THE PAPER:
   "The advantage of the raw measurement record over the detector record is established for leakage
-   detection [Google 1905.12731; npj QI 2020]. We show it specializes to correlated atom loss and
+   detection [Bultink 1905.12731; npj QI 2020]. We show it specializes to correlated atom loss and
    yields a calibration-free, closed-form estimator of the gate-pair loss-correlation eta that
    neither detector-covariance methods [BKY 2504.14643] nor the two-step leakage construction
    [Google] can produce."

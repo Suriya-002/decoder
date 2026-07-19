@@ -429,9 +429,9 @@ the guardrail.
 |---|---|---|
 | **RAW** m(r) | 0.50 | **0.49** |
 | 1-step detector m(r) ⊕ m(r−1) [BKY / Spitz / Google p_ij] | 0.38 | **0.003** |
-| 2-step m(r) ⊕ m(r−2) [Google leakage syndrome] | 0.39 | **0.008** |
+| 2-step m(r) ⊕ m(r−2) [Bultink leakage syndrome] | 0.39 | **0.008** |
 
-**Both XOR-based constructions are gauge-blind on the projected type.** Google's two-step leakage
+**Both XOR-based constructions are gauge-blind on the projected type.** Bultink's two-step leakage
 syndrome references round r−2, still a projected round, so the forced 0 is XORed against a random
 value exactly as the one-step is. Only the raw record works on both types.
 
@@ -545,7 +545,7 @@ verbatim. Do not claim the general idea.
 
 | reference | what it is | relation |
 |---|---|---|
-| **Google leakage HMM**, arXiv:1905.12731 / Science Advances | detects leakage from the RAW parity record; a leaked ancilla reads a persistent fixed outcome because measurement cannot discern \|2⟩ from \|1⟩. Defines a **two-step** syndrome s_D[m] = M_A[m]·M_A[m−2] explicitly because the consecutive detector destroys the signal. | **Found "the detector XOR is the wrong operation" for leakage, in 2019.** Must cite. Measured: their two-step construction does NOT recover the atom-loss signal on the projected type (gap 0.008). |
+| **Bultink et al. (Delft) leakage HMM**, arXiv:1905.12731 / Science Advances | detects leakage from the RAW parity record; a leaked ancilla reads a persistent fixed outcome because measurement cannot discern \|2⟩ from \|1⟩. Defines a **two-step** syndrome s_D[m] = M_A[m]·M_A[m−2] explicitly because the consecutive detector destroys the signal. | **Found "the detector XOR is the wrong operation" for leakage, in 2019.** Must cite. Measured: their two-step construction does NOT recover the atom-loss signal on the projected type (gap 0.008). |
 | **Transmon leakage HMM on Surface-17**, npj QI (2020) | extends HMM-on-raw-record to the surface code with analog ancilla readout | same lineage |
 | **Blume-Kohout & Young**, arXiv:2504.14643 | DEM estimation from syndrome data; p_ij / detector-covariance (Eq. 36). Explicitly transforms raw syndrome into detector histories by XOR of consecutive pairs. | the head-to-head baseline |
 | **Wang / Nie / Dai / Ni / Zhang / Zhai / Chen**, arXiv:2604.14269 (v1 15 Apr, v2 25 May 2026) | STGNN loss decoder, Tsinghua IAS + iFLYTEK + Intelligent Quantum Inception. **Recall 0.654, precision 0.845 at 10 rounds**; modified AlphaQubit 0.652 / 0.856. Hyperparameters: d=5, D=256, N_layer=6, α=0.1, Conv1D kernel 3. **>85% miss rate for final-round losses**; only ~3% of unrecognized losses originate from the earliest round. Round-level i.i.d. loss model. **No code released.** | the original target; now the loss-localizer reference point |
@@ -559,9 +559,9 @@ verbatim. Do not claim the general idea.
 ### THE ONE-LINE POSITIONING
 
 > The advantage of the raw measurement record over the detector record is established for leakage
-> detection [Google 1905.12731; npj QI 2020]. We show it specializes to correlated atom loss and
+> detection [Bultink 1905.12731; npj QI 2020]. We show it specializes to correlated atom loss and
 > yields a calibration-free, closed-form estimator of the gate-pair loss-correlation η that neither
-> detector-covariance methods [BKY 2504.14643] nor the two-step leakage construction [Google] can
+> detector-covariance methods [BKY 2504.14643] nor the two-step leakage construction [Bultink] can
 > produce.
 
 **This is a METHODS NOTE, not a field-shifting representation claim.** That is the right size. Lead

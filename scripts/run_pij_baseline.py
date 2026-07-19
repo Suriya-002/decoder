@@ -1,7 +1,7 @@
-"""HEAD-TO-HEAD vs the field's detector-statistics estimators (Spitz; Google; Blume-Kohout &
+"""HEAD-TO-HEAD vs the field's detector-statistics estimators (Spitz; Google Quantum AI; Blume-Kohout &
 Young arXiv:2504.14643). The claim is about REPRESENTATIONS, not about whose estimator is better.
 
-BKY/Spitz/Google all consume the DETECTOR record = XOR of consecutive syndrome measurements.
+BKY/Spitz/Google Quantum AI all consume the DETECTOR record = XOR of consecutive syndrome measurements.
 This project's result: that XOR destroys the atom-loss signature on the ancilla type whose
 stabilizer sign is randomly projected. So detector-based estimators inherit a gauge blind spot
 for loss correlation. This script demonstrates it with the field's actual p_ij estimator.
@@ -51,7 +51,7 @@ for eta in (0.0, 1.0):
             m_r, m_r2 = int(raw[mi[(a, r)]]), int(raw[mi[(a, r - 2)]])
             acc[("raw", t, co)][0] += int(m_r == 0); acc[("raw", t, co)][1] += 1
             acc[("det", t, co)][0] += int(det[di[(a, r)]] == 1); acc[("det", t, co)][1] += 1
-            acc[("g2", t, co)][0] += int((m_r ^ m_r2) == 1); acc[("g2", t, co)][1] += 1   # Google M[m]*M[m-2]
+            acc[("g2", t, co)][0] += int((m_r ^ m_r2) == 1); acc[("g2", t, co)][1] += 1   # Bultink M[m]*M[m-2]
 
 
 def rate(k):
@@ -65,14 +65,14 @@ print(f"{'representation':<22}{'anc type':>9} | {'signal|alive':>18} | {'signal|
 print("-" * 84)
 for rep, lbl in (("raw", "RAW  m(r)"),
                  ("det", "1-STEP detector  m(r)^m(r-1)  [BKY/Spitz]"),
-                 ("g2",  "2-STEP  m(r)^m(r-2)  [Google leakage]")):
+                 ("g2",  "2-STEP  m(r)^m(r-2)  [Bultink leakage]")):
     for t in ("Z", "X"):
         (ra, ea), (rc, ec) = rate((rep, t, 0)), rate((rep, t, 1))
         print(f"{lbl:<22}{t+'-type':>9} | {ra:>8.4f} +-{ea:.4f} | {rc:>8.4f} +-{ec:.4f} | {rc-ra:>+9.4f}")
     print()
 print("Z-type = deterministic stabilizer sign; X-type = randomly projected (memory_Z).")
-print("BOTH XOR-based representations -- the ordinary 1-step detector AND the 2-step Google leakage")
+print("BOTH XOR-based representations -- the ordinary 1-step detector AND the 2-step Bultink leakage")
 print("syndrome M[m]*M[m-2] -- are gauge-blind on the projected (X) type: gap ~ 0. Only the RAW")
 print("record keeps the co-loss signal on both types. This answers the sharpest related-work")
-print("question (Google 1905.12731 already uses the raw record + a 2-step product for LEAKAGE):")
+print("question (Bultink 1905.12731 already uses the raw record + a 2-step product for LEAKAGE):")
 print("their 2-step construction does NOT recover the atom-loss signal on the projected stabilizer.")
