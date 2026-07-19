@@ -366,3 +366,26 @@ not worth the compute, since "no benefit" and "slight harm" support the same con
 SCOPE - DO NOT OVERCLAIM. This tests ONE strategy for using eta (discount the corrupted detector).
 Perrin uses eta differently, inside superstabilizer / loss-detection construction. Evidence that eta
 has no value for THIS decoding strategy; NOT evidence that eta is useless for decoding in general.
+
+## 11b. POSITIONING - CORRECTED 19 Jul 2026 (supersedes the one-line positioning above)
+
+Wang et al. (2604.14269) already decode atom loss from the raw stabilizer record without LDUs,
+and explicitly feed BOTH the binary measurement outcome AND the XOR detector as separate
+features. The mechanism claim "the raw record beats the detector record for atom loss" is
+therefore NOT novel. Do not make it.
+
+WHAT IS NOVEL: the closed-form calibration-free estimator of the gate-pair loss correlation eta,
+and the fact that it needs no loss-detection units. Perrin et al. (2603.24237) define exactly
+this parameter - p_c, "the conditional probability of losing the second atom given that the first
+atom has already been lost during the same CZ gate" - and SWEEP it as a free input (0 <= p_c <= 1),
+because no one can measure it. Their loss threshold claim (3.2% -> 4%) depends on its value, as
+does Pauli Envelope's (5.15% -> 7.82%). That is the motivation.
+
+USE THIS LINE:
+  Raw stabilizer-record information has been used for leakage detection [Bultink 2020; Varbanov
+  2020] and, for atom loss, by a learned decoder consuming both raw outcomes and detectors [Wang
+  2026]. We quantify the representation gap that motivates this choice - the detector XOR destroys
+  the loss signature on gauge-projected stabilizers - and, unlike prior work, use it to derive a
+  calibration-free closed-form estimator of the gate-pair loss correlation eta. Existing
+  correlated-loss decoders [Perrin 2026] sweep this parameter as a free input and require
+  loss-detection units; our estimator needs neither.
