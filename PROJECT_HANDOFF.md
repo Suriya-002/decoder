@@ -658,3 +658,17 @@ python scripts\run_checks.py        # 30 checks; must print ALL CHECKS PASSED
 If any check fails, **stop** — the harness behaves differently in that environment and nothing
 downstream is trustworthy until it is resolved. Then read `FINDINGS.md` for the running log, and this
 document for the full picture.
+
+## 24. POSITIONING CORRECTION - 19 Jul 2026 (SUPERSEDES SECTION 18)
+
+Section 18's one-line positioning is RETRACTED. Wang et al. (2604.14269) already decode atom loss
+from the raw stabilizer record without LDUs, feeding BOTH the binary outcome AND the XOR detector
+as separate features. "The raw record beats the detector record for atom loss" is NOT a novel
+claim. Do not make it.
+
+NOVEL: the closed-form calibration-free estimator of the gate-pair loss correlation eta, requiring
+no loss-detection units. Perrin et al. (2603.24237) define this exact parameter as p_c - "the
+conditional probability of losing the second atom given that the first atom has already been lost
+during the same CZ gate" - and SWEEP it 0 to 1 as a free input, because nobody can measure it.
+Their threshold result (3.2% -> 4%) depends on its value; Pauli Envelope's (5.15% -> 7.82%) too.
+That gap is the motivation. See FINDINGS.md section 11b for the exact wording to use.
