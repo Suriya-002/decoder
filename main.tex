@@ -1,0 +1,1159 @@
+\documentclass{ieeeaccess}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\graphicspath{{figures/}}
+
+\begin{document}
+
+\history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
+\doi{10.1109/TQE.2020.DOI}
+
+\title{Calibration-Free Estimation of the Gate-Pair Atom-Loss Correlation in
+Neutral-Atom Surface Codes}
+
+\author{\uppercase{Suriya Narayanan Rajavel}\authorrefmark{1},
+\uppercase{and Sara Behdad}\authorrefmark{2}}
+
+\address[1]{University of Florida, Gainesville, FL 32611 USA (email: su.rajavel@ufl.edu)}
+\address[2]{Department of Industrial and Systems Engineering, University of Florida,
+Gainesville, FL 32611 USA (email: sarabehdad@ufl.edu)}
+
+\tfootnote{FIXME: sponsor and financial support acknowledgment, or delete.}
+
+\markboth
+{Rajavel \headeretal: Calibration-Free Estimation of Gate-Pair Atom-Loss Correlation}
+{Rajavel \headeretal: Calibration-Free Estimation of Gate-Pair Atom-Loss Correlation}
+
+\corresp{Corresponding author: Sara Behdad (email: sarabehdad@ufl.edu).}
+
+\begin{abstract}
+Atom loss is a dominant error source in neutral-atom quantum processors, and a single
+entangling gate can remove both of the atoms it acts on. The probability that a gate which
+loses one atom loses both is a hardware parameter that materially changes predicted
+error-correction performance: recent studies report loss thresholds varying by roughly fifty
+percent across its range. That parameter is currently treated as a free input, because no
+method exists to measure it without dedicated loss-resolving readout or additional
+loss-detection circuitry. We show that it can be recovered in closed form from the measurement
+record that a surface-code memory experiment already produces. When a gate removes one atom,
+the stabilizer measurement associated with its partner takes a value fixed by two constants
+that follow from the code structure rather than from calibration, and the mixture of those two
+values determines the correlation directly. The resulting estimator requires no additional
+hardware, no calibration experiment, and no trained model. We validate it against known answers
+across three code families and three code distances, under a refined neutral-atom noise model
+including biased errors on surviving atoms and a measured gate error budget, and we quantify
+the shot cost as a function of the quality of the upstream loss-localization step.
+\end{abstract}
+
+\begin{keywords}
+Atom loss, calibration, device characterization, erasure channel, neutral-atom
+quantum computing, parameter estimation, quantum error correction, Rydberg atoms,
+surface code, syndrome measurement.
+\end{keywords}
+
+\titlepgskip=-15pt
+\maketitle
+
+
+\section{Introduction}
+\label{sec:introduction}
+
+\PARstart{N}{eutral}-atom processors have become a leading platform for quantum error~\cite{bluvstein2024logicalprocessor}
+correction, but they carry an error mechanism that superconducting~\cite{acharya2023scalingsurfacecode,acharya2024belowthreshold} and trapped-ion systems do
+not share at comparable rates: atoms are physically lost from their traps. In recent
+high-fidelity entangling-gate demonstrations, atom loss accounts for roughly half of the total
+two-qubit gate error budget, at $0.061\%$ per gate against $0.035\%$ leakage, $0.024\%$
+Pauli-$Z$, and $0.003\%$ Pauli-$X(Y)$~\cite{evered2026highfidelitygates}. Loss is not a Pauli
+error. A lost qubit leaves the computational space entirely, so the stabilizers supported on it
+become undefined rather than flipped, and the decoders and error models built for Pauli noise
+do not describe it without modification.
+
+A further feature distinguishes atom loss from the erasure channels usually studied. Rydberg
+gates act on a pair of atoms brought into interaction range, and the mechanisms that eject one
+atom, including anti-trapping in the Rydberg state and radiative decay to untrapped levels, can
+eject both. The relevant quantity is
+\begin{equation*}
+  \eta = \Pr\!\left[\text{partner atom lost} \,\middle|\, \text{this atom lost in the same gate}\right],
+\end{equation*}
+the conditional probability that a gate which loses one atom loses both. This parameter is
+already established in the literature: it appears as $p_c$ in
+Ref.~\cite{perrin2026correlatedloss} and under the present symbol in
+Ref.~\cite{liu2026optimaldistanceatomloss}, with the same definition in each case.
+
+It is also unmeasured. Both of those studies treat $\eta$ as a free input and sweep it across
+its full range, and both report that the sweep matters. Reference~\cite{perrin2026correlatedloss}
+finds the loss threshold moving from $3.2\%$ to $4\%$ as the correlation increases;
+Reference~\cite{liu2026optimaldistanceatomloss} reports the corresponding threshold moving from
+$5.15\%$ to $7.82\%$. Two independent studies therefore publish hardware performance predictions
+that vary by roughly fifty percent depending on a parameter that neither can determine for any
+particular device. Measuring it has so far required either loss-resolving readout, available in
+metastable-qubit encodings through erasure
+conversion~\cite{wu2022erasureconversion,ma2023midcircuiterasure}, or teleportation-based
+loss-detection units inserted into the syndrome-extraction
+circuit~\cite{perrin2026correlatedloss}. Both are additional hardware, and neither is present in
+a standard surface-code memory experiment.
+
+An objection presents itself immediately. Both studies find that correlated loss is
+\emph{beneficial}, raising the threshold rather than lowering it, so it might appear that the
+precise value is unimportant. The benefit, however, is a curve rather than a constant. A device
+at $\eta = 0.3$ and a device at $\eta = 0.9$ sit at materially different points on the published
+threshold predictions, with correspondingly different resource estimates and different answers
+to whether correlated-loss-aware decoding is worth implementing at all. Those studies quantify
+the payoff as a function of the parameter; neither determines which payoff a given device
+receives. A threshold prediction that depends on an unmeasured quantity is a family of
+predictions, and selecting among them requires a measurement.
+
+This work provides one. We show that $\eta$ can be recovered in closed form from the raw
+measurement record that a surface-code memory experiment already produces. The estimator rests
+on two constants that are fixed by the code structure and the readout mechanism rather than by
+calibration. When a data qubit is lost and its gate partner survives, the truncated stabilizers
+on the lost qubit anticommute and the partner ancilla's outcome is unbiased. When the partner is
+co-lost, that ancilla is absent at readout and cannot be bright, up to a false-bright rate
+measurable by reading out an empty trap. The observed rate is a mixture of the two, and
+inverting the mixture gives $\eta$ directly.
+
+Our contributions are as follows.
+
+\begin{enumerate}
+  \item A closed-form estimator for the gate-pair atom-loss correlation, built from two
+        theory-pinned constants and one directly measurable hardware parameter, requiring no
+        loss-resolving readout, no loss-detection circuitry, no dedicated calibration
+        experiment, and no trained model.
+  \item Validation against known answers rather than against reference implementations. Both
+        constants are verified by forced injection over $9.6\times10^{6}$ samples and shown to
+        be uniform across stabilizer degree, ancilla type, and gate substep, and the full
+        pipeline is gated behind a suite of thirty known-answer checks.
+  \item A quantitative account of why the detector representation standard in this literature
+        cannot deliver this estimate. The parity of consecutive rounds is the operation that
+        makes syndrome data informative for Pauli noise, and it is also the operation that
+        destroys the loss signature on any stabilizer whose sign was randomly projected. We
+        state this as a prediction, measure the resulting representation gap, and confirm that
+        it also applies to the two-step construction developed for leakage
+        detection~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection}.
+  \item Demonstration across three code families and three code distances, with the gate
+        schedule detected rather than assumed, including a color code whose layer count and
+        stabilizer sign structure both differ from the surface code.
+  \item Characterization of the shot cost as a function of the quality of the upstream
+        loss-localization step, showing that a localizer wrong three times in four costs a
+        factor of roughly three in precision, so the method does not require a strong loss
+        decoder.
+  \item An explicit negative result. Supplying the estimated correlation to a decoder that
+        discounts syndrome bits from co-lost ancillas does not reduce the logical error rate,
+        for a reason internal to the estimator's own physics, and we report this alongside the
+        control experiment that establishes the null is real.
+\end{enumerate}
+
+We note at the outset what is not claimed. Using raw stabilizer outcomes in place of detector
+differences is not a novel input representation; it is established for leakage detection in
+superconducting devices~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection} and has
+been applied to atom loss by a learned decoder that consumes raw outcomes and detectors as
+separate features~\cite{wang2026aiqubitloss}. The contribution here is the estimand and the
+closed form, together with the quantified representation gap and the argument that accounts for
+it.
+
+The remainder of the paper is organized as follows.
+Section~\ref{sec:related} reviews atom loss in neutral-atom error correction, prior treatments
+of correlated loss, existing work reading loss from the syndrome record, and the syndrome-%
+statistics estimation literature. Section~\ref{sec:theory} develops the loss model, the two
+anchors, the estimator, the argument for detector blindness, and two systematic corrections.
+Section~\ref{sec:methods} describes the simulation, the loss-injection procedure, the
+known-answer validation methodology, the baselines, and the refined neutral-atom noise model.
+Section~\ref{sec:results} reports the results. Section~\ref{sec:discussion} discusses their
+scope and limitations, and Section~\ref{sec:conclusion} concludes.
+
+
+\section{Background and Related Work}
+\label{sec:related}
+
+\subsection{Atom Loss and Its Correction}
+\label{sec:rel-loss}
+
+Atom loss in a neutral-atom processor has several physical origins~\cite{morgado2021rydbergreview}. During a Rydberg-mediated
+entangling gate the excited state is anti-trapped in a conventional optical tweezer, so an atom
+that remains in the Rydberg state at the end of the pulse can be ejected; radiative decay from
+the Rydberg manifold can populate levels that the trap does not confine; and background-gas
+collisions and imperfect recapture during imaging contribute additional loss outside the gate.
+Reference~\cite{evered2026highfidelitygates} reports a per-atom per-gate loss probability of
+$0.054\%$, and decomposes the two-qubit gate error into $0.061\%$ loss, $0.035\%$ leakage,
+$0.024\%$ Pauli-$Z$, and $0.003\%$ Pauli-$X(Y)$, making loss the single largest component.
+
+Loss is qualitatively different from a Pauli error~\cite{terhal2015qecreview}. A Pauli error leaves the qubit in the
+computational space and flips the stabilizers that anticommute with it, producing a detector
+event that a matching decoder can interpret. A lost qubit leaves the space entirely: the
+stabilizers supported on it are no longer well defined, and the corresponding measurement
+outcomes become uninformative in a way that persists for the rest of the experiment rather than
+manifesting as a single flip. Decoders and error models constructed for Pauli noise therefore do
+not describe loss without modification.
+
+The standard remedy is to convert loss into erasure. If the location of a lost qubit is known,
+the error becomes a Pauli error of known support and unknown type, which is substantially easier
+to correct than an error of unknown location: Ref.~\cite{delfosse2020erasuredecoding} gives a
+linear-time maximum-likelihood decoder for surface codes over the erasure channel, and the loss
+thresholds of Refs.~\cite{stace2009lossthresholds,stace2010degeneracyloss} are obtained by
+merging the stabilizers that touched a lost qubit into superstabilizers supported on the
+surviving qubits, at the cost of reduced effective code distance. This construction, in various
+forms, underlies most subsequent loss-tolerant decoding; Ref.~\cite{baranes2026lossdetection,baranes2025architecture}
+develops the corresponding superchecks in a fault-tolerant algorithmic setting.
+
+All of these approaches presuppose that loss locations are known, which requires an additional
+mechanism. Three exist. Erasure conversion encodes the qubit in a metastable manifold so that
+the dominant error decays to a state distinguishable from both computational levels, allowing
+mid-circuit detection~\cite{wu2022erasureconversion}, an approach demonstrated in Rydberg
+simulators~\cite{scholl2023erasurerydberg} and in gate
+experiments~\cite{ma2023midcircuiterasure}. Loss-detection units insert teleportation-based
+circuitry into the syndrome-extraction cycle that heralds whether an atom is
+present~\cite{perrin2026correlatedloss}. Finally, a decoder can attempt to infer loss locations
+from the syndrome record itself, which we discuss in Sec.~\ref{sec:rel-syndrome}. The first two
+require hardware not present in a standard surface-code memory experiment; the third does not,
+and is the regime this work operates in. A related line of work locates Rydberg decay events within leakage-reduction circuits~\cite{yu2026rydbergdecayswaplrc}.
+
+\subsection{Correlated Atom Loss}
+\label{sec:rel-correlated}
+
+Because a Rydberg gate acts on two atoms brought into interaction range, and because the
+mechanisms that eject one atom can act on both, loss at a gate is not necessarily an independent
+single-atom event. This possibility was noted and explicitly deferred in
+Ref.~\cite{perrin2025qecatomloss}, which assigns each gate a loss probability $p_l$ and treats
+the simultaneous loss of both atoms as the coincidence of two independent events with
+probability $p_l^2$, while observing that genuinely correlated loss could occur in experiment and
+leaving its investigation to future work.
+
+That investigation is Ref.~\cite{perrin2026correlatedloss}, which introduces a second parameter
+quantifying the conditional probability of losing the second atom given that the first was lost
+in the same gate. Their decoder constructs a loss graph from heralds supplied by
+teleportation-based loss-detection units and updates per-edge loss posteriors within it, and
+they report that correlated loss is a resource rather than a liability: relative to a decoder
+assuming independent loss, they obtain up to an order-of-magnitude reduction in logical error
+probability and a loss threshold rising from $3.2\%$ to $4\%$. The correlation parameter itself
+enters as an a priori input and is swept across its full range from $0$ to $1$.
+
+Reference~\cite{liu2026optimaldistanceatomloss} reaches a compatible conclusion by a different
+route. Its appendix on correlated atom loss adopts the parameterization in which, for an error
+rate $p$ and correlated-loss contribution $\eta$, each atom is lost independently with
+probability $p(1-\eta)/2$ and together with its partner with probability $p\eta/2$, and shows
+that correlated loss admits the same effective distance as Pauli errors. The reported threshold
+rises from $5.15\%$ to $7.82\%$ as $\eta$ increases from $0$ to $1$. As in
+Ref.~\cite{perrin2026correlatedloss}, $\eta$ is a swept simulation input; the decoding
+constructions in that work additionally assume loss-resolving readout.
+
+Related work from the same program addresses adjacent aspects of the loss channel.
+Reference~\cite{pecorari2026lossbiased} proposes converting spurious Rydberg excitations into
+atom loss by mid-circuit ionization, biasing the noise toward a detectable channel, and argues
+that loss-aware decoding then approaches optimal erasure scaling.
+Reference~\cite{jandura2026stabilizermeasurements} treats the gate-level protocol design that
+determines how leakage and decay propagate into the stabilizer measurement.
+
+The common structure across this literature is that the correlation parameter is defined,
+varied, and shown to matter, but is never inferred from data. Every quantitative claim about its
+consequences is therefore conditional on a value that no reported method can supply for a
+specific device.
+
+\subsection{Extracting Loss Information from the Syndrome Record}
+\label{sec:rel-syndrome}
+
+The observation that the raw stabilizer measurement record carries information that the detector
+record does not is established, and predates this work by several years. It arose for leakage
+rather than loss. Reference~\cite{bultink2020repetitiveparity} detects leakage in a
+superconducting device directly from the repeated parity record, exploiting the fact that a
+leaked ancilla produces a persistent fixed readout outcome because the measurement cannot
+distinguish the leaked state from one of the computational levels, and defines a two-step
+syndrome formed from measurements two rounds apart precisely because the ordinary
+consecutive-round detector destroys that signature.
+Reference~\cite{varbanov2020leakagedetection} extends the approach to a transmon surface code
+using hidden Markov models over the same record.
+
+For atom loss specifically, Ref.~\cite{wang2026aiqubitloss} decodes loss events directly from
+the stabilizer record without loss-detection units or specialized atomic species, on the stated
+grounds that avoiding such hardware is desirable. That work exploits the same physical signature
+this paper relies on: a lost data qubit causes overlapping stabilizers to anticommute, so the
+affected outcomes collapse to either sign with equal probability, producing temporally
+correlated flickering rather than an isolated flip. It supplies a spatio-temporal graph neural
+network with both the binary measurement outcome and the detector value as separate input
+features, and reports a recall of $0.654$ at precision $0.845$ over ten rounds at distance five. That work sits within a broader line of learned decoders for topological codes~\cite{torlai2017neuraldecoder,varsamopoulos2018feedforward,baireuther2018mlassisted,chamberland2018deepneuraldecoders,bausch2024alphaqubit}.
+
+We state plainly that the choice to use raw stabilizer outcomes rather than detector differences
+for loss inference is therefore not novel to this work, and we do not claim it. Three
+differences nevertheless separate what follows from Ref.~\cite{wang2026aiqubitloss}. First, the
+estimand differs: that work localizes individual loss events in space and time, while this work
+estimates a parameter of the loss model. Second, the method differs: that work trains a
+supervised network whose performance depends on its training distribution, while
+Eq.~\eqref{eq:estimator} is closed-form with constants fixed by the code structure. Third, the
+loss model differs: that work adopts a round-level independent loss channel with no correlation
+parameter, so the quantity estimated here does not appear in it. The relationship is
+complementary rather than competitive, and indeed a localizer of the kind that work provides is
+one natural front end for the estimator, a case we evaluate quantitatively in
+Sec.~\ref{sec:res-localizer}.
+
+What this work adds to the representational question is quantitative rather than conceptual. The
+prior literature makes the representational choice; it does not measure what the choice is worth,
+and it does not give the argument that determines when the detector record fails. We supply both,
+and show in particular that the two-step construction of
+Refs.~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection} does not recover the
+atom-loss signature, for a reason that follows directly from the argument in
+Sec.~\ref{sec:theory-detector}.
+
+\subsection{Estimating Error-Model Parameters from Syndrome Data}
+\label{sec:rel-estimation}
+
+Inferring error-model parameters from syndrome extraction data is an established program with
+its own methodology. Reference~\cite{spitz2018adaptiveweight} introduced the pairwise estimator
+that recovers effective error probabilities from correlations between detector events, allowing
+matching weights to be adapted to measured noise rather than assumed.
+Reference~\cite{blumekohout2025detectorerrormodels} places this on a general footing, deriving a
+framework for estimating probabilities of individual and aggregated detector-error-model events
+from multi-cycle syndrome data and recovering the earlier pairwise estimator as a special case.
+A parallel line estimates Pauli channels describing syndrome-extraction noise, and
+Ref.~\cite{hockings2025aces} estimates circuit eigenvalues for syndrome-extraction circuits from
+raw measurement data at scale.
+
+Two features of this literature bear on the present work. First, its target is Pauli and
+measurement error mechanisms, for which the detector representation is not merely adequate but
+correct: those mechanisms manifest as changes in stabilizer values, and the detector
+transformation isolates exactly those changes while discarding the gauge freedom that carries no
+information. Second, and consequently, the entire program is built on detector histories. Both
+Ref.~\cite{spitz2018adaptiveweight} and Ref.~\cite{blumekohout2025detectorerrormodels} transform
+raw syndrome records into detector histories by taking the parity of consecutive rounds before
+any estimation is performed.
+
+That transformation is where atom loss is lost. Section~\ref{sec:theory-detector} shows that a
+lost atom pins a measurement outcome to a fixed value regardless of the stabilizer's gauge, so
+the operation that removes the gauge also removes the signature, on any stabilizer whose sign was
+randomly projected. Section~\ref{sec:res-representation} measures the resulting gap. These
+methods are therefore not competitors that this work outperforms on a shared task; they are
+methods whose input representation excludes the error class considered here, and the estimator
+below should be understood as addressing a class they do not reach rather than as an improvement
+on their performance within their own domain.
+
+\subsection{Position of This Work}
+\label{sec:rel-position}
+
+Table~\ref{tab:priorwork} summarizes the preceding discussion against the two questions that
+determine whether a method can supply the number this work targets: does it treat the
+correlation parameter at all, and if so, does it obtain that parameter from measured data or
+require it as an input?
+
+\begin{table}[!t]
+\caption{Treatment of the gate-pair loss correlation across related work. ``Swept'' indicates the
+parameter is a simulation input varied across its range; ``estimated'' indicates it is inferred
+from measured data.}
+\label{tab:priorwork}
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+Work & Correlation & Source & Extra hardware \\
+\midrule
+\cite{spitz2018adaptiveweight,blumekohout2025detectorerrormodels} & not modeled & --- & none \\
+\cite{hockings2025aces} & not modeled & --- & none \\
+\cite{wang2026aiqubitloss} & not modeled & --- & none \\
+\cite{perrin2025qecatomloss} & independent & assumed & LDUs \\
+\cite{perrin2026correlatedloss} & modeled & swept & LDUs \\
+\cite{liu2026optimaldistanceatomloss} & modeled & swept & loss readout \\
+\cite{pecorari2026lossbiased} & modeled & swept & ionization \\
+\midrule
+This work & modeled & \textbf{estimated} & \textbf{none} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Three observations follow. The methods that require no additional hardware do not model the
+correlation, either because they target a different error class entirely
+\cite{spitz2018adaptiveweight,blumekohout2025detectorerrormodels,hockings2025aces} or because
+their loss model does not include it \cite{wang2026aiqubitloss}. The methods that model the
+correlation obtain it as an input and additionally assume loss-resolving readout or
+loss-detection circuitry
+\cite{perrin2026correlatedloss,liu2026optimaldistanceatomloss,pecorari2026lossbiased}. No
+reported method estimates the parameter from data collected by an unmodified syndrome-extraction
+experiment.
+
+This work occupies that position. It does not improve on the decoders of
+Refs.~\cite{perrin2026correlatedloss,liu2026optimaldistanceatomloss}, which solve a different
+problem and are entitled to the hardware they assume; it supplies the input those decoders
+currently take on faith. It does not improve on the estimators of
+Refs.~\cite{spitz2018adaptiveweight,blumekohout2025detectorerrormodels}, which are correct for
+their target error classes; it addresses a class their representation excludes. And it does not
+introduce the use of raw stabilizer outcomes for loss inference, which
+Refs.~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection,wang2026aiqubitloss}
+establish; it derives what that representation makes calculable in closed form, and quantifies
+what the alternative representation costs.
+
+
+
+\section{Estimating the Loss Correlation from Syndrome Measurements}
+\label{sec:theory}
+
+\subsection{Loss Model and the Correlation Parameter}
+\label{sec:theory-model}
+
+We model atom loss at the level of individual two-qubit gates. Following the parameterization
+used in the neutral-atom error-correction
+literature~\cite{perrin2026correlatedloss,liu2026optimaldistanceatomloss}, define
+\begin{equation}
+  \eta \;=\; \Pr\!\left[\text{partner atom lost} \,\middle|\, \text{this atom lost in the same CZ}\right],
+  \label{eq:eta-def}
+\end{equation}
+the conditional probability that a gate which loses one atom loses both. For a gate acting on
+atoms $(a,b)$ with per-atom loss probability $p_g$,
+\begin{align}
+  \Pr[\text{both lost}] &= \eta\,p_g, \label{eq:both}\\
+  \Pr[\text{only } a] = \Pr[\text{only } b] &= (1-\eta)\,p_g. \label{eq:one}
+\end{align}
+The per-atom marginal is $p_g$ independently of $\eta$. This matching is essential: without it,
+varying $\eta$ would change the total loss budget simultaneously with the correlation, and no
+observable could be attributed to either alone.
+
+Equations~\eqref{eq:both}--\eqref{eq:one} are equivalent to the parameterization of
+Ref.~\cite{liu2026optimaldistanceatomloss}, in which each atom is lost independently with
+probability $p(1-\eta)/2$ and together with its partner with probability $p\eta/2$, under
+$p = 2p_g$, and to the parameter $p_c$ of Ref.~\cite{perrin2026correlatedloss}.
+
+In a surface-code syndrome-extraction circuit every two-qubit gate acts between one data qubit
+and one ancilla; there are no data--data entangling gates. The partner of a lost data qubit in a
+correlated-loss event is therefore always an ancilla. Ancillas are reset and measured every
+round, so ancilla loss is transient, while data loss persists for the remainder of the
+experiment. The estimator below exploits this asymmetry.
+
+\subsection{Two Theory-Pinned Anchors}
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig1_mechanism.png}
+\caption{Mechanism of the estimator. A two-qubit gate acts between a data qubit and an ancilla.
+(a) When only the data qubit is lost, the stabilizers supported on it are truncated and
+anticommute, so the surviving partner ancilla's raw outcome is unbiased. (b) When both atoms are
+lost, the ancilla is absent at readout and cannot be bright, up to the false-bright rate
+$\epsilon$. The observed rate is a mixture of the two cases weighted by $\eta$, and inverting the
+mixture recovers $\eta$ directly. Neither constant is fitted.}
+\label{fig:mechanism}
+\end{figure}
+\label{sec:theory-anchors}
+
+Consider a data qubit lost during a gate, and let $a$ be the ancilla it was coupled to at that
+gate. Let $m_a$ denote the raw measurement outcome of that ancilla in the loss round.
+
+If the partner ancilla survives, the loss of the data qubit truncates the stabilizers supported
+on it. The truncated $X$-type and $Z$-type stabilizers anticommute, so the measured outcome
+collapses to $\pm1$ with equal probability:
+\begin{equation}
+  \Pr[m_a = 0 \mid \text{partner alive}] = \tfrac{1}{2}.
+  \label{eq:anchor1}
+\end{equation}
+
+If the partner ancilla is co-lost, it is absent at readout and cannot be bright. Atom-array
+readout detects population in the excited state, so an empty trap is indistinguishable from the
+ground state, up to a false-bright rate $\epsilon$ arising from dark counts or stray scatter:
+\begin{equation}
+  \Pr[m_a = 0 \mid \text{partner co-lost}] = 1-\epsilon.
+  \label{eq:anchor2}
+\end{equation}
+
+Neither constant is fitted. Equation~\eqref{eq:anchor1} follows from the code structure and
+Eq.~\eqref{eq:anchor2} from the readout mechanism; $\epsilon$ is measured directly on hardware
+by reading out a trap known to be empty.
+
+\subsection{The Estimator}
+\label{sec:theory-estimator}
+
+A fraction $\eta$ of loss events are co-lost, so the observed rate is a mixture of
+\eqref{eq:anchor1} and \eqref{eq:anchor2}. Inverting the mixture gives
+\begin{equation}
+  \hat\eta \;=\; \frac{\Pr[m_a=0] - \tfrac{1}{2}}{\tfrac{1}{2}-\epsilon},
+  \label{eq:estimator}
+\end{equation}
+with the binomial confidence interval on $\Pr[m_a=0]$ propagating through the linear map.
+Equation~\eqref{eq:estimator} contains no fitted parameters and requires no loss-detection
+unit, no loss-resolving readout, and no dedicated calibration experiment. It requires only that
+loss events be localized well enough to identify which ancilla to read; we quantify the
+sensitivity to that localization in Sec.~\ref{sec:res-localizer}.
+
+\subsection{Why the Detector Representation Is Blind to Loss}
+\label{sec:theory-detector}
+
+Decoders and syndrome-statistics estimators do not consume raw measurement outcomes. They
+consume detectors, the parity of consecutive rounds,
+\begin{equation}
+  d_a(r) = m_a(r) \oplus m_a(r-1).
+  \label{eq:detector}
+\end{equation}
+This transformation is what makes the syndrome record informative for Pauli noise: the absolute
+value of a stabilizer is set by a random projection in the first round and carries no
+information, so only changes are meaningful.
+
+Equation~\eqref{eq:detector} predicts that the same transformation destroys the loss signature.
+A dead ancilla gives $m_a(r) = 0$ deterministically, so $d_a(r) = m_a(r-1)$, the previous
+round's raw value. Two cases follow. If the stabilizer's sign is deterministic in the memory
+basis, then $m_a(r-1) = 0$ and the detector reads $0$, distinguishable from the value $1/2$
+expected of a surviving truncated ancilla. If the stabilizer's sign was randomly projected,
+then $m_a(r-1)$ is an unbiased bit and the detector is a coin flip, indistinguishable from a
+surviving truncated ancilla.
+
+Half of the ancillas in a surface-code memory experiment measure randomly projected
+stabilizers. On that half the detector representation carries no information about whether the
+partner atom was co-lost, while the raw outcome reads $0$ in both cases. The prediction is
+therefore that co-loss discrimination is near-total in the raw record for both ancilla types,
+strong in the detector record for the deterministic type, and absent in the detector record for
+the projected type. Section~\ref{sec:res-representation} tests this, including against the
+two-step construction $s_a(r) = m_a(r)\oplus m_a(r-2)$ introduced for leakage
+detection~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection}, which references a
+round that is itself randomly projected and is therefore predicted to be blind as well.
+
+The argument depends only on whether a stabilizer's sign is randomly projected, not on the
+code. Which ancilla type is blind is basis- and code-dependent; that the projected type is
+blind is not.
+
+\subsection{Systematic Corrections}
+\label{sec:theory-rules}
+
+Equation~\eqref{eq:anchor1} is a steady-state statement, and two situations violate it.
+
+At the start of the experiment the data register is in a product state, so a truncated
+stabilizer in the memory basis remains deterministic rather than randomly projected and reads
+$0$ with high probability. Losses occurring in the first round are therefore excluded.
+
+Data loss is permanent, so a stabilizer truncated in round $r$ remains truncated in all later
+rounds. Once the first truncated outcome is recorded, the surviving qubits are projected and
+the stabilizer reads deterministically thereafter, so only the first truncated round satisfies
+\eqref{eq:anchor1}. Restricting to first-truncation events removes the resulting bias.
+Section~\ref{sec:res-estimator} shows that at physical loss rates the first-round exclusion
+alone is sufficient, and the persistence correction matters only well above hardware loss
+rates.
+
+
+\section{Simulation Methods}
+\label{sec:methods}
+
+\subsection{Circuits and Noise}
+\label{sec:methods-circuit}
+
+All simulations use rotated surface-code memory experiments generated by
+Stim~\cite{gidney2021stim}. The layout, syndrome-extraction schedule, and detector definitions
+are taken directly from Stim's generated circuits rather than constructed by hand, so that the
+hook-error-avoiding gate ordering is the standard one~\cite{tomita2014lowdistancesurfacecodes}.
+Unless stated otherwise the configuration is distance $d=5$ with $T=12$ rounds and uniform
+circuit-level depolarizing noise at $p=2\times10^{-3}$ applied after Clifford gates, before each
+round on data qubits, before measurement, and after reset. At $d=5$ this gives $25$ data qubits
+and $24$ ancillas ($12$ of each type), with $80$ two-qubit gates per round in four substeps of
+$20$; each qubit participates in at most one gate per substep. We verify that all $80$ gates act
+between one data qubit and one ancilla, spanning $80$ distinct Tanner edges with no violations.
+
+Unless stated otherwise we take $p_g = 5.4\times10^{-4}$, the per-atom per-gate loss probability
+reported in Ref.~\cite{evered2026highfidelitygates}. We confirm the marginal matching of
+Eqs.~\eqref{eq:both}--\eqref{eq:one} numerically: at $\eta = 0.00,\,0.25,\,0.50,\,1.00$ the
+measured per-atom loss rate is $0.00995,\,0.00998,\,0.01004,\,0.00992$ against a target of
+$0.01$, while the co-lost atom fraction tracks $\eta$ exactly.
+
+We also implement the round-level independent loss model of Ref.~\cite{wang2026aiqubitloss}, in
+which each qubit is removed with a fixed probability in each round. This is a distinct loss
+mechanism rather than the $\eta \to 0$ limit of Eqs.~\eqref{eq:both}--\eqref{eq:one}, and we use
+it only as an external reference point.
+
+\subsection{Loss Injection}
+\label{sec:methods-injection}
+
+Atom loss is not a Pauli channel and cannot be injected as one. At the moment of loss we apply a
+single-qubit depolarizing channel of strength $3/4$ to the affected qubit; the uniform Pauli
+twirl is the completely depolarizing channel, so the atom is traced out and replaced by the
+maximally mixed state. Thereafter, every subsequent operation on that qubit is removed, so a
+lost atom performs no entangling gate on a surviving partner; the lost qubit's readout is forced
+to $0$ by inserting a reset immediately before the measurement, in the basis matching that
+measurement; ancillas are restored by their own mid-circuit reset each round while data qubits
+are not; and measurements are never deleted, so that the measurement record retains a fixed
+length and all detector record offsets remain valid.
+
+The last point is a correctness requirement rather than a modeling choice. Deleting a
+measurement shifts every downstream record offset and silently corrupts all subsequent
+detectors. We enforce it with an invariant requiring that measurement and detector counts be
+independent of the loss configuration, in both memory bases.
+
+\subsection{Known-Answer Validation}
+\label{sec:methods-checks}
+
+Because the quantities in Sec.~\ref{sec:theory} are fixed by theory, the simulation can be
+checked against known answers rather than against itself. We maintain a suite of $30$ such
+checks, all of which must pass before any result is reported. They cover the noiseless circuit
+producing zero detector events; the no-loss rebuild reproducing the generated circuit exactly;
+the data--ancilla structure of every two-qubit gate; a lost data qubit flickering exactly its
+Tanner-partner ancillas and nothing else; the $\eta$-independence of the loss marginals; the
+invariance of measurement and detector counts under loss in both bases; byte-level agreement
+between an audited reference circuit builder and the faster builder used for production runs,
+over $200$ random loss configurations in each basis; both anchors of
+Sec.~\ref{sec:theory-anchors} at $\epsilon = 0$ and $\epsilon = 0.02$; recovery of planted
+detector correlations by the baseline of Sec.~\ref{sec:methods-baselines}; and the generality
+results of Sec.~\ref{sec:res-generality}.
+
+Two design rules proved important. Checks use forced injection wherever a deterministic known
+answer exists, rather than sampling; an early sampled version of the anchor check included
+anomalous first-round events and sat at the edge of its tolerance. Checks also assert ratios
+rather than absolute tolerances near the noise floor, since a check that passes intermittently
+provides no information. The suite is reproduced across two platforms and two Python versions.
+
+\subsection{Baselines}
+\label{sec:methods-baselines}
+
+We compare against the detector-record estimators standard in this
+literature~\cite{spitz2018adaptiveweight,blumekohout2025detectorerrormodels}, implementing the
+pairwise estimator in the form given by Blume-Kohout and
+Young~\cite{blumekohout2025detectorerrormodels},
+\begin{equation}
+  p_{ij} = \frac{1}{2} - \frac{1}{2}\sqrt{\frac{\langle z_i\rangle\langle z_j\rangle}{\langle z_i z_j\rangle}},
+  \qquad z_i = (-1)^{d_i},
+  \label{eq:pij}
+\end{equation}
+and validating it against planted correlations ($p_{12} = 0.05, 0.12, 0.03$ recovered as
+$0.0504$, $0.1197$, $0.0300$; $0$ recovered as $-0.0005$). We additionally implement the
+two-step syndrome of Refs.~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection}. All
+three representations are evaluated on the same co-loss discrimination task, split by ancilla
+type.
+
+\subsection{Refined Neutral-Atom Physics}
+\label{sec:methods-realism}
+
+To test robustness beyond the gate-cancellation loss model we add two effects reported in the
+neutral-atom literature. Following Ref.~\cite{perrin2025qecatomloss}, when exactly one atom of a
+gate pair is lost the surviving partner suffers a maximally biased $Z$ error, implemented with
+probability $1/2$. We also apply the residual Pauli components of the measured gate error budget
+of Ref.~\cite{evered2026highfidelitygates}, $0.024\%$ Pauli-$Z$ and $0.003\%$ Pauli-$X(Y)$, to
+every surviving gate; the loss and leakage components are carried by the loss channel itself.
+The false-bright rate $\epsilon$ is swept from $0$ to $0.05$.
+
+\subsection{Code-General Parsing}
+\label{sec:methods-generality}
+
+The rotated surface code has four gate layers per round; other codes do not. To apply the
+estimator beyond a single code we detect the gate schedule rather than assume it: the circuit's
+two-qubit gate layers are parsed, the repetition period identified, and each layer decomposed
+into data--ancilla pairs. This requires only that each qubit participate in at most one gate per
+layer and that every gate act between one data qubit and one ancilla, which we verify per code.
+We report results for the rotated surface code at $d=3,5,7$; the unrotated surface
+code~\cite{dennis2002topologicalmemory,fowler2012surfacecodes} at $d=5$, which has a different
+stabilizer geometry but also four layers per round; and the color
+code~\cite{bombin2006colorcodes} at $d=5$, a different code family with six layers per round.
+
+
+\section{Results}
+\label{sec:results}
+
+\subsection{The Correlation Is Weakly Informative for Loss Detection}
+\label{sec:res-ceiling}
+
+Before estimating $\eta$ it is worth asking whether a decoder needs to know it in order to
+\emph{find} losses. It does not. We computed the Bayes-optimal discrimination between a lost and
+a surviving data qubit, as a likelihood-ratio test over the exact empirical distribution of
+detector patterns on the victim's Tanner-partner ancillas. No architecture can exceed these
+values on the same observation window.
+
+Table~\ref{tab:ceiling} reports the optimal AUC under uncorrelated ($\eta=0$) and fully
+correlated ($\eta=1$) loss. The difference is at most $0.034$, it changes sign depending on
+whether the final destructive readout falls inside the window, and it vanishes entirely once a
+lost qubit has had two rounds in which to produce repeated syndrome flicker. Correlation is
+therefore not a useful prior for loss localization.
+
+The same table contains the result that makes estimation possible. Discriminating $\eta=1$ data
+from $\eta=0$ data, rather than lost qubits from surviving ones, gives an AUC of $0.72$ to
+$0.75$, stable across basis and window. The correlation is weakly informative about \emph{where}
+losses are and strongly informative about \emph{itself}.
+
+\begin{table}[!t]
+\caption{Bayes-optimal AUC for detecting a lost data qubit, under uncorrelated and fully
+correlated loss. $\Delta$ is the change from knowing the correlation. The final column
+discriminates $\eta=1$ from $\eta=0$ syndrome data.}
+\label{tab:ceiling}
+\centering
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Window & Basis & $\eta=0$ & $\eta=1$ & $\Delta$ \\
+\midrule
+Final round, no final readout & $Z$ & 0.8426 & 0.8098 & $-0.033$ \\
+Final round, with final readout & $Z$ & 0.8534 & 0.8874 & $+0.034$ \\
+Final round, with final readout & $X$ & 0.9194 & 0.9120 & $-0.008$ \\
+Early loss, two rounds flicker & $Z$ & 0.9871 & 0.9872 & $+0.000$ \\
+Early loss, two rounds flicker & $X$ & 0.9870 & 0.9884 & $+0.001$ \\
+\midrule
+\multicolumn{5}{@{}l}{AUC discriminating $\eta=1$ from $\eta=0$ data: $0.72$--$0.75$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Representation Dependence of the Co-Loss Signal}
+\label{sec:res-representation}
+
+Section~\ref{sec:theory-detector} predicts that the detector transformation destroys the
+co-loss signature on randomly projected stabilizers while the raw record preserves it
+everywhere. Table~\ref{tab:representation} confirms this. We compare three representations of
+the same partner-ancilla observation on the same events: the raw outcome $m_a(r)$, the
+one-step detector $m_a(r)\oplus m_a(r-1)$ consumed by matching decoders and by the estimators
+of Refs.~\cite{spitz2018adaptiveweight,blumekohout2025detectorerrormodels}, and the two-step
+syndrome $m_a(r)\oplus m_a(r-2)$ of
+Refs.~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection}.
+
+On the deterministic-sign ancilla type all three representations discriminate. On the randomly
+projected type the raw record retains a gap of $0.49$ while both parity-based representations
+collapse to $0.003$ and $0.008$, statistically indistinguishable from zero. The two-step
+construction, designed for exactly this class of problem in superconducting devices, is blind
+here for the reason given in Sec.~\ref{sec:theory-detector}: the round it differences against
+is itself randomly projected.
+
+\begin{table}[!t]
+\caption{Co-loss discrimination gap on the partner ancilla, by representation and ancilla type,
+memory-$Z$ experiment. The gap is $|\Pr[\text{indicator}\,|\,\text{co-lost}] -
+\Pr[\text{indicator}\,|\,\text{alive}]|$.}
+\label{tab:representation}
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Representation & Deterministic & Projected \\
+\midrule
+Raw $m_a(r)$ & 0.501 & \textbf{0.486} \\
+One-step $m_a(r)\oplus m_a(r-1)$ & 0.377 & \textbf{0.003} \\
+Two-step $m_a(r)\oplus m_a(r-2)$ & 0.391 & \textbf{0.008} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The effect is basis-symmetric. In the detector record of a memory-$Z$ experiment the
+deterministic $Z$-type ancillas carry a co-loss signal of $+0.367$ while the $X$-type carry
+$-0.010$; in a memory-$X$ experiment the roles exchange exactly, $-0.001$ and $+0.374$. What
+determines blindness is whether the stabilizer's sign was randomly projected, not the Pauli
+type of the ancilla.
+
+\subsection{Verification of the Anchors}
+\label{sec:res-anchors}
+
+Both constants in Eq.~\eqref{eq:estimator} are fixed by theory, so they can be tested against
+known answers rather than fitted. We inject a single loss deterministically at a bulk round and
+measure the partner ancilla's raw outcome over $9.6\times10^{6}$ samples.
+
+The first anchor holds to five digits: $\Pr[m_a=0\,|\,\text{partner alive}] = 0.49998 \pm
+0.00032$, a deviation of $-0.1\sigma$. Table~\ref{tab:anchors} shows it is uniform across every
+stratification we can form, so the value is not an average over a structured population. The
+second anchor is exact at $\epsilon=0$: across $12\,473$ co-loss events the partner's raw
+outcome was never once $1$.
+
+\begin{table}[!t]
+\caption{First anchor, $\Pr[m_a=0\,|\,\text{partner alive}]$, by stratum. Forced injection at a
+bulk round, $9.6\times10^{6}$ samples. Theory value $0.5$.}
+\label{tab:anchors}
+\centering
+\begin{tabular}{@{}llc@{}}
+\toprule
+Stratification & Stratum & $\Pr[m_a=0]$ \\
+\midrule
+\multirow{3}{*}{Stabilizer degree} & 4 (bulk) & $0.50006 \pm 0.00047$ \\
+ & 3 (edge) & $0.49987 \pm 0.00047$ \\
+ & 2 (corner) & $0.50017 \pm 0.00100$ \\
+\midrule
+\multirow{2}{*}{Ancilla type} & $Z$ & 0.49989 \\
+ & $X$ & 0.50007 \\
+\midrule
+\multirow{4}{*}{Gate substep} & 0 & 0.50009 \\
+ & 1 & 0.50001 \\
+ & 2 & 0.49969 \\
+ & 3 & 0.50014 \\
+\midrule
+\multicolumn{2}{@{}l}{Pooled} & $0.49998 \pm 0.00032$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Recovery of \texorpdfstring{$\eta$}{eta}}
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig2_recovery.png}
+\caption{Recovery of the gate-pair loss correlation across three code families at
+$p_g = 5.4\times10^{-4}$. Points are offset horizontally for legibility; error bars are $95\%$
+confidence intervals. The lower panel shows the residual on a magnified scale. The color code has
+six two-qubit gate layers per round rather than four and a different stabilizer sign structure,
+both detected rather than assumed.}
+\label{fig:recovery}
+\end{figure}
+\label{sec:res-estimator}
+
+With both anchors verified, Eq.~\eqref{eq:estimator} recovers $\eta$ from sampled correlated
+loss at the physical rate $p_g = 5.4\times10^{-4}$. Across $\eta_{\text{true}} = 0.00$, $0.25$,
+$0.50$, $0.75$, $1.00$ the estimator returns $-0.005$, $0.249$, $0.507$, $0.759$, $1.000$, with
+every point inside its $95\%$ confidence interval. Independent runs with different seeds give
+$-0.010$, $0.245$, $0.488$, $0.763$, $1.000$ and $-0.006$, $0.249$, $0.507$, $0.759$, $1.000$.
+
+The two corrections of Sec.~\ref{sec:theory-rules} behave as predicted. Losses in the first
+round give $\Pr[m_a=0] = 0.6684 \pm 0.0007$ for memory-basis partners, against $0.5000$ for
+every subsequent round, because the data register is still in a product state and the truncated
+stabilizer remains deterministic. With $T=12$ rounds this predicts an upward bias of $+0.007$;
+the observed pooled bias before correction is $+0.008$.
+
+The persistence correction is measurable only well above hardware loss rates.
+Table~\ref{tab:pgsweep} sweeps $p_g$ at $\eta_{\text{true}}=0$, where any nonzero estimate is
+bias. At the physical rate the uncorrected estimator is already unbiased, and the correction
+becomes necessary only above roughly ten times that rate. Conditioning on ground truth at
+$p_g = 10^{-2}$ confirms the mechanism directly: events with exactly one newly lost neighbor,
+which the naive collector treats as clean, read $0.5242 \pm 0.0049$, a $9.6\sigma$ deviation
+caused by stabilizers that were truncated in an earlier round and have since become
+deterministic.
+
+\begin{table}[!t]
+\caption{Estimator bias at $\eta_{\text{true}}=0$ as a function of per-atom loss rate, with and
+without the first-truncation restriction. The physical rate is $5.4\times10^{-4}$.}
+\label{tab:pgsweep}
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+$p_g$ & Uncorrected & First-truncation only \\
+\midrule
+$5.4\times10^{-4}$ & $-0.0118 \pm 0.0164$ & $\phantom{-}0.0085 \pm 0.0169$ \\
+$2\times10^{-3}$ & $\phantom{-}0.0083 \pm 0.0125$ & $\phantom{-}0.0107 \pm 0.0136$ \\
+$5\times10^{-3}$ & $\phantom{-}0.0353 \pm 0.0112$ & $-0.0047 \pm 0.0136$ \\
+$1\times10^{-2}$ & $\phantom{-}0.0590 \pm 0.0098$ & $\phantom{-}0.0036 \pm 0.0143$ \\
+$2\times10^{-2}$ & $\phantom{-}0.1570 \pm 0.0092$ & $\phantom{-}0.0027 \pm 0.0181$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Shot Cost and Sensitivity to Loss Localization}
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig3_shotcost.png}
+\caption{Estimator standard error against shot count for four qualities of upstream loss
+localization, given as (recall, precision). Markers are measured at $1.5\times10^{4}$ shots;
+lines are the $1/\sqrt{N}$ projection. A localizer wrong three times in four remains within a
+factor of roughly three of an oracle.}
+\label{fig:shotcost}
+\end{figure}
+\label{sec:res-localizer}
+
+Equation~\eqref{eq:estimator} requires knowing which ancilla to read, which requires an upstream
+step that identifies when and where a loss occurred. We therefore characterize how estimator
+precision degrades as that step is made worse, simulating a localizer that returns qubit and
+round but not the gate substep, so that all candidate partners must be averaged, and that makes
+both false-positive and timing errors. False positives bias $\hat\eta$ upward, since a phantom
+loss resembles a suppressed partner; timing errors bias it downward.
+
+Table~\ref{tab:localizer} reports the resulting standard error, projected to larger shot counts
+by the usual $1/\sqrt{N}$ scaling. A localizer with the recall and precision of the published
+learned decoder of Ref.~\cite{wang2026aiqubitloss} reaches $\sigma_\eta = 0.010$ at $10^{6}$
+shots. A deliberately poor localizer that is wrong three times in four still reaches $0.023$,
+a factor of roughly three worse than an oracle. Since a surface-code memory experiment
+routinely collects $10^{6}$ shots or more, the estimator does not require a strong loss decoder
+to be useful.
+
+\begin{table}[!t]
+\caption{Estimator standard error $\sigma_\eta$ versus loss-localizer quality, at $1.5\times10^4$
+shots and projected to larger samples. Localizer quality is given as (recall, precision).}
+\label{tab:localizer}
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Localizer & $1.5\times10^{4}$ & $10^{5}$ & $10^{6}$ \\
+\midrule
+Oracle $(1.00, 1.00)$ & 0.059 & 0.023 & \textbf{0.007} \\
+Learned decoder $(0.65, 0.85)$ & 0.083 & 0.032 & \textbf{0.010} \\
+Crude $(0.40, 0.60)$ & 0.115 & 0.045 & \textbf{0.014} \\
+Very crude $(0.25, 0.40)$ & 0.187 & 0.072 & \textbf{0.023} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Robustness Under Refined Neutral-Atom Noise}
+\label{sec:res-realism}
+
+The anchors are unaffected by the refined loss physics of Sec.~\ref{sec:methods-realism}.
+Table~\ref{tab:realism} adds, cumulatively, the maximally biased $Z$ error on the surviving
+partner of a lossy gate, the residual Pauli components of the measured gate error budget, and a
+false-bright rate. The first anchor moves by at most $0.0011$ and the second tracks $1-\epsilon$
+exactly.
+
+The insensitivity to the survivor bias has a simple cause. That error acts on the atom that
+\emph{remains} after a one-sided loss, whereas the estimator reads the ancilla belonging to the
+atom that was \emph{lost}. A $Z$ error on a surviving data qubit cannot change whether a dead
+ancilla reads zero.
+
+End-to-end recovery is likewise unchanged. At $\eta=0.5$ with high statistics the refined model
+gives $\hat\eta = 0.4979 \pm 0.0125$ against $0.4931 \pm 0.0124$ for the plain model,
+statistically identical. Sweeping the false-bright rate from $0$ to $0.05$ leaves every point
+of the $\eta$ recovery inside its confidence interval.
+
+\begin{table}[!t]
+\caption{Estimator anchors under cumulative additions of refined neutral-atom physics. Theory
+values are $0.5$ and $1-\epsilon$.}
+\label{tab:realism}
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Noise model & Partner alive & Partner co-lost \\
+\midrule
+Gate-cancellation loss only & 0.5006 & 1.0000 \\
+$+$ survivor biased $Z$ & 0.5000 & 1.0000 \\
+$+$ residual Pauli budget & 0.4999 & 1.0000 \\
+$+$ false-bright $\epsilon=0.01$ & 0.4995 & 0.9900 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Generality Across Codes and Distances}
+\label{sec:res-generality}
+
+The argument of Sec.~\ref{sec:theory-detector} depends only on whether a stabilizer's sign is
+randomly projected, and the experiments bear that out. Forcing a single ancilla dead at a bulk
+round, the raw outcome reads $0$ with probability $1.0000$ on every code and distance tested,
+while its detector fires with probability $0$ on the deterministic type and $0.5$ on the
+projected type.
+
+The color code is the sharpest test because it inverts the labels. In a memory-$Z$ surface-code
+experiment the $Z$-type ancillas are deterministic, with steady-state mean outcome $0.000$, and
+the $X$-type are projected, at $0.499$. In the color code the $Z$-type ancillas measure a
+projected stabilizer, steady-state mean $0.498$, and their detectors are correspondingly blind.
+Which ancilla type is blind depends on the code and basis; that the projected type is blind does
+not.
+
+Table~\ref{tab:generality} shows the full estimator pipeline applied across codes. The color
+code has six gate layers per round rather than four, and the unrotated surface code has a
+different stabilizer geometry at the same layer count; in both cases the anchors hold and
+$\eta$ is recovered within confidence intervals throughout its range.
+
+\begin{table}[!t]
+\caption{Estimator across code families. Layers is the number of two-qubit gate layers per
+syndrome-extraction round, detected rather than assumed.}
+\label{tab:generality}
+\centering
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Code & $d$ & Data/anc & Layers & Alive & Co-lost \\
+\midrule
+Rotated surface & 3, 5, 7 & 25/24 & 4 & 0.5000 & 1.0000 \\
+Unrotated surface & 5 & 41/40 & 4 & 0.5005 & 1.0000 \\
+Color & 5 & 19/9 & \textbf{6} & 0.5009 & 1.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Effect of Knowing \texorpdfstring{$\eta$}{eta} on Decoding}
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig4_impact.png}
+\caption{Logical error rate under four decoder belief models at $p_g = 8\times10^{-3}$,
+$\eta = 1$, $5500$ shots. Error bars are $95\%$ confidence intervals. The control gap between the
+ignorant and data-aware arms establishes that the decoder responds strongly to loss information,
+so the null between the data-aware and $\eta$-informed arms is a real null. The oracle arm, given
+perfect knowledge of every dead ancilla, coincides exactly with the $\eta$-informed arm.}
+\label{fig:impact}
+\end{figure}
+\label{sec:res-impact}
+
+A natural question is whether supplying $\eta$ to a decoder improves the logical error rate. For
+the most direct strategy available without loss heralds, it does not.
+
+We decode the same lossy syndrome data four ways, differing only in what the decoder is told
+about losses. Because a lossy circuit has non-deterministic detectors and a non-deterministic
+logical observable, we sample from the true lossy circuit but decode with the clean detector
+error model, modifying edge weights per shot to encode the decoder's beliefs. Decoding uses minimum-weight perfect matching~\cite{higgott2022pymatching,higgott2025sparseblossom}. Freeing an edge
+means setting its probability to $1/2$. We verified that rebuilding the model with no
+modification reproduces the baseline logical error rate exactly.
+
+Table~\ref{tab:impact} gives the result. The control is decisive: a decoder told nothing about
+losses has a logical error rate of $0.346$, while one told the data-qubit loss locations
+achieves $0.219$, an improvement of $0.127 \pm 0.017$. The machinery therefore responds strongly
+to loss information, and a null result between the remaining arms is a real null rather than an
+insensitive measurement.
+
+Additionally telling the decoder which ancillas were co-lost, so that it discounts their
+corrupted syndrome bits, does not help: $0.235$ against $0.219$, a difference of $-0.015 \pm
+0.016$ that is consistently negative across runs and machines but not individually significant.
+This is not a limitation of the estimate's quality. An oracle arm given perfect knowledge of
+every dead ancilla returns exactly the same logical error rate as the $\eta$-informed arm, since
+at $\eta=1$ the informed belief coincides with the truth.
+
+The reason connects directly to Sec.~\ref{sec:theory-anchors}. Discounting a co-lost ancilla
+treats its reading as erased. But a dead ancilla reads zero \emph{deterministically}, which is
+precisely the fact the estimator exploits, and its detector still constrains the previous
+round's value. Erasing that reading discards more information than the correction recovers.
+
+This tests one strategy, not the parameter's value in general. Ref.~\cite{perrin2026correlatedloss}
+uses the same correlation inside a loss graph built from teleportation-based loss-detection unit
+heralds and reports up to an order-of-magnitude reduction in logical error probability, together
+with a loss threshold increase from $3.2\%$ to $4\%$. That approach requires hardware this work
+does not assume. Integrating an estimated $\eta$ into a herald-based decoder of that kind is
+left to future work.
+
+\begin{table}[!t]
+\caption{Logical error rate under four decoder belief models. $d=5$, $T=12$, $p=2\times10^{-3}$,
+$p_g = 8\times10^{-3}$, $\eta=1$, $5500$ shots.}
+\label{tab:impact}
+\centering
+\begin{tabular}{@{}llc@{}}
+\toprule
+Arm & Decoder is told & LER \\
+\midrule
+Ignorant & nothing & 0.3464 \\
+Data-aware & data-qubit loss locations & \textbf{0.2194} \\
+$\eta$-informed & $+$ co-lost ancillas, from $\eta$ & 0.2346 \\
+Oracle & $+$ every dead ancilla & 0.2346 \\
+\midrule
+\multicolumn{2}{@{}l}{Control (ignorant $-$ data-aware)} & $+0.1269 \pm 0.0167$ \\
+\multicolumn{2}{@{}l}{Effect of $\eta$ (data-aware $-$ $\eta$-informed)} & $-0.0151 \pm 0.0157$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{What the Estimator Supplies}
+\label{sec:disc-purpose}
+
+The correlation parameter is already established in the neutral-atom error-correction
+literature, and it already carries quantitative consequences. Reference~\cite{perrin2026correlatedloss}
+sweeps it from $0$ to $1$ and reports the loss threshold moving from $3.2\%$ to $4\%$;
+Reference~\cite{liu2026optimaldistanceatomloss} sweeps the same quantity and reports a threshold
+moving from $5.15\%$ to $7.82\%$. Both treat it as a free input, because measuring it has
+required either loss-resolving readout or dedicated loss-detection circuitry.
+
+Equation~\eqref{eq:estimator} closes that gap. A device running a standard surface-code memory
+experiment already produces the data the estimator needs, so $\eta$ can be reported alongside
+gate fidelity and per-atom loss rate as a routine characterization number rather than assumed.
+The practical consequence is that a platform can determine, from data it already collects,
+which point on the published threshold curves it actually occupies, and therefore whether
+correlated-loss-aware decoding is worth building for that hardware.
+
+We emphasize that the benefit of correlated loss reported in those works does not make the
+measurement unnecessary. The benefit is a curve, not a constant: $\eta = 0.3$ and $\eta = 0.9$
+imply materially different thresholds and resource estimates. Those studies quantify the payoff;
+neither determines which payoff a given device receives.
+
+\subsection{Relation to Syndrome-Statistics Estimation}
+\label{sec:disc-relation}
+
+Estimating error-model parameters from syndrome data is an established
+program~\cite{spitz2018adaptiveweight,blumekohout2025detectorerrormodels}. That program is built
+on the detector record, which is the correct representation for the Pauli and measurement error
+mechanisms it targets. Section~\ref{sec:res-representation} shows that the same representation
+is blind to correlated atom loss on the randomly projected half of the stabilizer group, and
+Section~\ref{sec:theory-detector} explains why: loss pins a measurement outcome to zero
+regardless of the gauge that the detector transformation is designed to quotient away.
+
+The relationship is therefore complementary rather than competitive. Detector-based estimators
+remain the appropriate tool for the error classes they were built for. Atom loss requires a
+different observable from the same experiment, and the estimator here is one instance of what
+that observable makes available.
+
+\subsection{Reconciling the Decoding Result}
+\label{sec:disc-decoding}
+
+Section~\ref{sec:res-impact} finds no decoding benefit from supplying $\eta$, while
+Reference~\cite{perrin2026correlatedloss} reports up to an order-of-magnitude reduction in
+logical error probability from exploiting the same correlation. These are not in conflict, and
+the difference is instructive.
+
+Their decoder consumes heralds from teleportation-based loss-detection units, which identify
+where atoms are missing, and uses the correlation to update loss probabilities within a loss
+graph constructed from those heralds. The strategy tested here has no heralds available by
+construction, since the premise of this work is that no such hardware is assumed, and so it uses
+the correlation in the only way available without them: to discount syndrome bits from ancillas
+believed to be co-lost.
+
+That strategy fails for a reason that is internal to this paper's own physics. A dead ancilla
+reads zero deterministically, which is exactly the fact Eq.~\eqref{eq:anchor2} rests on, and its
+detector still constrains the previous round's outcome. Treating that reading as erased discards
+information rather than correcting for it. The oracle arm confirms the diagnosis: perfect
+knowledge of every dead ancilla performs identically to the $\eta$-informed arm, so the null is
+a property of the strategy and not of the estimate.
+
+The conclusion we draw is narrow and deliberately so. Knowing $\eta$ does not improve
+detector-discounting decoding without heralds. Whether an estimated $\eta$ improves a
+herald-based decoder of the kind in Reference~\cite{perrin2026correlatedloss} is a separate
+question requiring superstabilizer machinery this work does not implement.
+
+\subsection{Limitations}
+\label{sec:disc-limitations}
+
+Several limitations bound the scope of these results.
+
+All experiments are memory experiments in a single basis at a time. Logical circuits involving
+transversal gates, lattice surgery, or code deformation are not tested, and the anchors of
+Section~\ref{sec:theory-anchors} are derived for the memory setting.
+
+The codes tested are Calderbank-Shor-Steane codes with a data--ancilla gate structure and at most
+one gate per qubit per layer. This covers the surface and color code families reported here but
+excludes codes whose syndrome-extraction circuits violate those assumptions.
+
+The noise model is circuit-level depolarizing noise together with the refined loss physics of
+Section~\ref{sec:methods-realism}. It does not include crosstalk, atom transport or shuttling
+loss between rounds, or correlated non-Markovian effects. No hardware data is used anywhere in
+this work, and the estimator has not been applied to an experimental syndrome record.
+
+The refined-physics code path is validated by the anchor tests and by end-to-end agreement with
+the plain model, but is not verified byte-for-byte against the audited reference circuit builder,
+which does not implement those effects.
+
+Finally, the decoding question of Section~\ref{sec:res-impact} is answered for one strategy at
+one operating point. The measured difference is consistently negative across independent runs but
+is not individually significant, and we do not claim that knowing $\eta$ degrades decoding, only
+that this strategy does not benefit from it.
+
+\subsection{Explicit Non-Claims}
+\label{sec:disc-nonclaims}
+
+We do not claim that using raw stabilizer outcomes rather than detector differences is a novel
+input representation. That choice is established for leakage detection in superconducting
+devices~\cite{bultink2020repetitiveparity,varbanov2020leakagedetection} and has been applied to
+atom loss by a learned decoder that consumes both raw outcomes and
+detectors~\cite{wang2026aiqubitloss}. The contribution here is the estimand and the closed form:
+a calibration-free estimator of the gate-pair loss correlation, together with the quantified
+representation gap and the argument that explains it.
+
+We do not claim any advantage over herald-based correlated-loss decoders. Those methods solve a
+different problem with additional hardware.
+
+We do not claim experimental validation. Every result is simulation, checked against known
+answers rather than against measured data.
+
+\subsection{Future Work}
+\label{sec:disc-future}
+
+Three directions follow directly. The first is applying the estimator to an experimental
+syndrome record from a neutral-atom device, which requires no new theory and would convert the
+present result from a method into a measurement. The second is integrating an estimated $\eta$
+into a herald-based decoder with superstabilizer construction, which is the natural test of
+whether the parameter has decoding value when used the way
+Reference~\cite{perrin2026correlatedloss} uses it. The third is recovering the gate substep of a
+loss event rather than averaging over candidate partners; the substep is encoded in the mixture
+of partner outcomes, and exploiting it would tighten $\sigma_\eta$ by roughly a factor of four at
+fixed shot count.
+
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+Correlated atom loss is a hardware property with published quantitative consequences for
+error-correction performance, and until now it has been a parameter that studies vary rather
+than measure. We have shown that it can be recovered in closed form from the measurement record
+a surface-code memory experiment already produces, using two constants fixed by the code
+structure and the readout mechanism rather than by calibration, and requiring no loss-resolving
+readout, no loss-detection circuitry, and no trained model.
+
+The estimator recovers the correlation within confidence intervals across its full range, on
+three code families and three code distances, under a noise model that includes biased errors on
+surviving atoms and a measured gate error budget. It reaches a standard error of $0.010$ at
+$10^{6}$ shots when paired with a loss localizer of currently published quality, and $0.023$
+with a deliberately poor one, so it does not depend on a strong loss decoder to be useful.
+
+We also report that supplying the correlation to a decoder that discounts syndrome bits from
+co-lost ancillas does not reduce the logical error rate, and that the reason is the same physics
+the estimator relies on: a dead ancilla's reading is deterministic and therefore informative, so
+treating it as erased discards more than it recovers. Whether the parameter improves decoding
+when used inside a herald-based loss graph remains open.
+
+The immediate application is characterization. A neutral-atom device can now report its
+gate-pair loss correlation alongside its gate fidelity, and thereby determine which point on the
+published threshold curves it occupies.
+
+
+
+\section*{Acknowledgment}
+% TODO.
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+
+\EOD
+
+\end{document}
