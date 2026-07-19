@@ -389,3 +389,26 @@ USE THIS LINE:
   calibration-free closed-form estimator of the gate-pair loss correlation eta. Existing
   correlated-loss decoders [Perrin 2026] sweep this parameter as a free input and require
   loss-detection units; our estimator needs neither.
+
+## 11c. LIU CONFIRMATION - 19 Jul 2026. Case-C risk CLOSED.
+
+Appendix G / Lemma 10 / Algorithm 3 of arXiv:2603.04156 read in full. Verdict: SWEPT AS INPUT,
+never estimated from data. Their Appendix G defines: "For an error rate p and correlated loss
+contribution eta, each atom has probability p(1-eta)/2 of being lost independently and probability
+p*eta/2 of being lost together with its partner." That is OUR loss model, with OUR parameter name.
+Their p maps to 2*p_g. Marginals matched independent of eta, same as ours. Fig. 17 is captioned
+"Threshold versus correlated-loss contribution" with x-axis 0.00 to 1.00 - a sweep, not a fit. No
+"estimate"/"infer"/"fit" language anywhere near eta in the paper.
+
+CONSEQUENCE - motivation is now TWO independent papers, not one:
+  Perrin 2603.24237  sweeps p_c 0->1, threshold 3.2%  -> 4%
+  Liu    2603.04156  sweeps eta 0->1, threshold 5.15% -> 7.82%
+Both publish hardware threshold predictions that swing ~50% on a parameter neither can measure.
+
+REFEREE QUESTION TO PRE-EMPT: both papers say correlated loss HELPS (raises threshold), so why
+measure it? ANSWER: the benefit is a curve. eta=0.3 and eta=0.9 give different thresholds, resource
+estimates, and decoder design choices. They quantify the payoff; neither can say which payoff a
+given device gets. Put this in the intro.
+
+CAUTION: quotes above came from programmatic PDF extraction. Verify typography against the PDF
+before quoting verbatim in the manuscript.
