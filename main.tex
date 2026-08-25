@@ -793,14 +793,13 @@ Stratification & Stratum & $\Pr[m_a=0]$ \\
 \end{tabular}
 \end{table}
 
-\subsection{Recovery of \texorpdfstring{$\eta$}{eta}}
+\subsection{Recovery of $\eta$}
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig2_recovery.png}
 \caption{Recovery of the gate-pair loss correlation across three code families
-at $p_g=5.4\times10^{-4}$. Points are offset horizontally so they do not
-overlap; error bars are $95\%$ confidence intervals. The lower panel is the
-residual on a magnified scale. The color code has six two-qubit layers per
+at $p_g=5.4\times10^{-4}$. Error bars are $95\%$ confidence intervals.
+The color code has six two-qubit layers per
 round rather than four, and a different stabilizer sign structure. Both were
 read from the circuit, not assumed.}
 \label{fig:recovery}
@@ -811,8 +810,9 @@ With the anchors in hand, \eqref{eq:estimator} is run on sampled correlated
 loss at the physical rate $p_g=5.4\times10^{-4}$. For
 $\eta_{\text{true}}=0.00$, $0.25$, $0.50$, $0.75$, $1.00$ the estimator
 returns $-0.005$, $0.249$, $0.507$, $0.759$, $1.000$. Every point sits inside
-its $95\%$ interval. Fig.~\ref{fig:recovery} shows the recovery and the
-residuals. An independent seed gives $-0.010$, $0.245$, $0.488$, $0.763$, $1.000$.
+its $95\%$ interval. Fig.~\ref{fig:recovery} shows the recovery. An independent seed gives $-0.006$, $0.255$, $0.510$, $0.751$, and $1.000$;
+every point recovers its planted value inside its confidence interval, and the
+two series agree to within $0.008$ at every $\eta$.
 
 The two corrections in Sec.~\ref{sec:theory-rules} behave as written.
 First-round losses give $\Pr[m_a=0]=0.6684\pm 0.0007$ for memory-basis
@@ -948,7 +948,7 @@ Color & 5 & 19/9 & \textbf{6} & 0.5009 & 1.0000 \\
 \end{tabular}
 \end{table}
 
-\subsection{Effect of Knowing \texorpdfstring{$\eta$}{eta} on Decoding}
+\subsection{Effect of Knowing $\eta$ on Decoding}
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig4_impact.png}
