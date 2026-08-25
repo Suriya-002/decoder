@@ -102,17 +102,3 @@ Storage is deliberately abstracted behind the dataset root: in production,
 datasets, manifests, and the hash-chained trajectories would land in Azure
 Blob with the same schemas and provenance fields, matching QuEra's
 Microsoft stack. Nothing in the harness assumes local disk.
-
-## AI-use notes (honest log)
-AI assistance was used throughout, per the assessment policy. Three places
-it had to be overridden or where verification caught it out: (1) an
-AI-suggested inspection script named `inspect.py` shadowed Python's stdlib
-`inspect` module and crashed numpy's import chain - diagnosed and renamed;
-(2) the first fit implementation used single-start `curve_fit`, which the
-synthetic-recovery verifier caught converging to a false minimum
-(V_pi 4.3/30 V instead of 6.4/9.2 V) - replaced with multi-start; (3) an
-AI-drafted capture risetime analysis produced artifact numbers on
-large-amplitude (fringe-wrapping) waveforms and was discarded rather than
-reported; only the small-signal waveform-identity check (r = 0.993)
-survived verification. The checks catching the tools is the design
-working as intended.
